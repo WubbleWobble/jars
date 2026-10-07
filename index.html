@@ -50,6 +50,13 @@
         .ghost{background:#fff;border:2px solid var(--ink);border-radius:999px;padding:9px 16px;font-weight:700;font-size:16px}
         .ghost:hover{background:var(--bg)}
         .preview-jars{display:flex;justify-content:center;gap:2px}
+        .ct-pick{margin-top:20px}
+        .sublabel{font-weight:700;font-size:16px;margin-bottom:8px}
+        .ct-row{display:flex;gap:10px;flex-wrap:wrap}
+        .ct{display:grid;justify-items:center;gap:2px;min-width:78px;padding:6px 10px 8px;border:2px solid var(--line);border-radius:14px;background:#fff;font-weight:700;font-size:15px}
+        .ct canvas{width:50px;height:82px}
+        .ct span{max-width:84px;text-align:center;line-height:1.15}
+        .ct[aria-pressed=true]{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
         .preview-jars canvas{width:62px;height:101px}
 
         /* questions */
@@ -151,6 +158,10 @@
                         <canvas id="pv1"></canvas><canvas id="pv2"></canvas><canvas id="pv3"></canvas>
                     </div>
                 </div>
+                <div class="ct-pick">
+                    <div class="sublabel" id="ctLabel">Container</div>
+                    <div class="ct-row" id="containers" role="group" aria-labelledby="ctLabel"></div>
+                </div>
             </section>
 
             <section class="panel" id="fill">
@@ -217,7 +228,7 @@
     const sameJars = (a, b) => a.length === b.length && a.every((l, i) => labelText(l) === labelText(b[i]));
     const parseLabel = v => String(v).split("/").map(t => t.trim().slice(0, 40)).filter(Boolean).slice(0, 6);
     const MAX_JARS = 100;
-    let state = { name: "", color: "#e63946", jars: JARS.map(l => [...l]), answers: JARS.map(() => 0), lids: JARS.map(() => ""), flips: JARS.map(() => false) };
+    let state = { name: "", color: "#e63946", jars: JARS.map(l => [...l]), answers: JARS.map(() => 0), lids: JARS.map(() => ""), flips: JARS.map(() => false), container: 0 };
     const key = i => labelText(state.jars[i] || []);
 
     /* #link format: base64url of a packed bit stream (or "~" + base64url of it deflated, when that's shorter),
@@ -229,6 +240,9 @@
              2 = a custom label [8-bit byte length + UTF-8, "/" between lines]   3 = end
          7-bit count of marked jars, each: 16-bit jar id, 3-bit answer (0-5), 1 bit has-decoration [4-bit STYLE_NAMES index],
              1 bit flipped
+         Then optional fields. Older links simply end before them, and running out (or the zero padding at the end)
+         means the default, so only ever add more at the end, with 0 = how things were before:
+         4-bit container (CONTAINERS index, 0 = jar)
        A jar's id is a 16-bit hash of its label, so the defaults can be reordered/added to without breaking links
        (renaming a default jar does lose answers for it). */
     const hashId = t => { let h = 0x811c9dc5; for (const ch of t) h = Math.imul(h ^ ch.codePointAt(0), 0x01000193); return ((h >>> 16) ^ h) & 0xffff; };
@@ -279,7 +293,8 @@
             const st = STYLE_NAMES.indexOf(state.lids[i]);
             w.put(ids[i], 16); w.put(state.answers[i], 3); w.put(st >= 0 ? 1 : 0, 1); if (st >= 0) w.put(st, 4); w.put(state.flips[i] ? 1 : 0, 1);
         }
-        return custColor || custJars || state.name || marked.length ? w.bytes() : null;
+        if (state.container) w.put(state.container, 4);
+        return custColor || custJars || state.name || marked.length || state.container ? w.bytes() : null;
     }
     function decodeState(bytes) {
         const r = bitReader(bytes), s = { name: "", color: "#e63946", marks: {} };
@@ -297,6 +312,7 @@
             const id = r.get(16), v = r.get(3), st = r.get(1) ? r.get(4) : -1, flip = r.get(1) === 1;
             if (v <= 5) s.marks[id] = [v, st, flip];
         }
+        try { s.container = r.get(4); } catch (e) { s.container = 0; } // optional: missing in older links
         return s;
     }
     // s may come from a shared link, so everything in it is checked before use
@@ -311,6 +327,7 @@
             answers: ids.map(id => (s.marks[id] || [0])[0]),
             lids: ids.map(id => STYLE_NAMES[(s.marks[id] || [])[1]] || ""),
             flips: ids.map(id => !!(s.marks[id] || [])[2]),
+            container: s.container > 0 && s.container < CONTAINERS.length ? s.container : 0,
         };
         return true;
     }
@@ -360,18 +377,13 @@
 
     /* ===== jar drawing (local box: 96 wide, 170 tall, lid at top) ===== */
     function roundRect(c, x, y, w, h, r) { c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
-    function bodyPath(c) {
-        c.beginPath(); c.moveTo(14, 32);
-        c.quadraticCurveTo(4, 36, 4, 60); c.lineTo(4, 146); c.quadraticCurveTo(4, 170, 28, 170);
-        c.lineTo(68, 170); c.quadraticCurveTo(92, 170, 92, 146); c.lineTo(92, 60); c.quadraticCurveTo(92, 36, 82, 32);
-        c.closePath();
-    }
-    function drawLid(c, dx = 0, dy = 0, rot = 0) {
+    function drawLid(c, dx = 0, dy = 0, rot = 0, w = 84) {
+        const x0 = 48 - w / 2;
         c.save(); c.translate(48 + dx, 12 + dy); c.rotate(rot); c.translate(-48, -12);
-        c.beginPath(); roundRect(c, 6, 0, 84, 24, 6); c.fillStyle = "#fff"; c.fill();
+        c.beginPath(); roundRect(c, x0, 0, w, 24, 6); c.fillStyle = "#fff"; c.fill();
         c.lineWidth = 4.5; c.strokeStyle = INK; c.stroke();
         c.lineWidth = 2.4; c.beginPath();
-        for (const y of [8, 16]) { c.moveTo(10, y); c.quadraticCurveTo(48, y + 3, 86, y); }
+        for (const y of [8, 16]) { c.moveTo(x0 + 4, y); c.quadraticCurveTo(48, y + 3, x0 + w - 4, y); }
         c.stroke(); c.restore();
     }
     function teardrop(c, x, y, r, ox, oy) { // tail points toward (ox,oy)
@@ -409,7 +421,7 @@
         }
         c.restore();
     }
-    function drawLoneAnt(c, flip, dx) { // side-on ant standing on the lid (feet at y=0), facing +x before flip
+    function drawLoneAnt(c, flip, dx, x0 = 48, y0 = 0, k = 1) { // side-on ant standing on the lid (feet at y0), facing +x before flip
         const legs = [[[10, -20], [17, -13], [19, -1], [23, -1]], [[3, -19], [-1, -11], [-7, -1], [-10, -1]], [[-3, -19], [-14, -10], [-28, -1], [-31, -1]]];
         const limbs = near => {
             c.beginPath();
@@ -423,7 +435,7 @@
                 c.moveTo(x + rx * Math.cos(rot), y + rx * Math.sin(rot)); c.ellipse(x, y, rx, ry, rot, 0, 7);
             }
         };
-        c.save(); c.translate(48 + dx, 0); c.scale(flip * 1.1, 1.1);
+        c.save(); c.translate(x0 + dx, y0); c.scale(flip * 1.1 * k, 1.1 * k);
         c.strokeStyle = "#fff"; c.lineWidth = 8; limbs(false); c.stroke(); limbs(true); c.stroke(); c.lineWidth = 6; body(); c.stroke();
         c.strokeStyle = INK; c.lineWidth = 3; limbs(false); c.stroke();
         c.strokeStyle = "#fff"; c.lineWidth = 7; limbs(true); c.stroke();
@@ -447,9 +459,13 @@
         out.forEach(d => d.L = Math.min(d.L, 164 - base - d.w * 0.6));
         return out;
     }
-    function collar(c, base, drips) {
-        c.moveTo(4, 18); c.lineTo(92, 18);
-        c.quadraticCurveTo(100, 22, 99, base - 4); c.quadraticCurveTo(99, base, 95, base);
+    function collar(c, base, drips, { x0 = -3, x1 = 99, top = 18, topAt } = {}) {
+        if (topAt) { // spill hugging the container's shape instead of a flat top
+            c.moveTo(x0 + 7, topAt(x0 + 7));
+            for (let x = x0 + 9; x <= x1 - 7; x += 2) c.lineTo(x, topAt(x));
+            top = topAt(x1 - 7);
+        } else { c.moveTo(x0 + 7, top); c.lineTo(x1 - 7, top); }
+        c.quadraticCurveTo(x1 + 1, top + 4, x1, base - 4); c.quadraticCurveTo(x1, base, x1 - 4, base);
         for (const d of [...drips].sort((a, b) => b.cx - a.cx)) {
             const r = d.w / 2;
             c.lineTo(d.cx + r + 4, base); c.quadraticCurveTo(d.cx + r, base, d.cx + r, base + 5);
@@ -457,7 +473,216 @@
             c.arc(d.cx, base + d.L, r * 1.12, 0, Math.PI, false);
             c.lineTo(d.cx - r, base + 5); c.quadraticCurveTo(d.cx - r, base, d.cx - r - 4, base);
         }
-        c.lineTo(1, base); c.quadraticCurveTo(-3, base, -3, base - 4); c.quadraticCurveTo(-4, 22, 4, 18); c.closePath();
+        if (topAt) top = topAt(x0 + 7);
+        c.lineTo(x0 + 4, base); c.quadraticCurveTo(x0, base, x0, base - 4); c.quadraticCurveTo(x0 - 1, top + 4, x0 + 7, top); c.closePath();
+    }
+
+    function bandCollar(c, drips, { x0, x1, topAt, band }) { // an even coat over a curved top, with drips hanging from it
+        const bot = x => topAt(x) + band;
+        c.moveTo(x0, topAt(x0));
+        for (let x = x0 + 2; x <= x1; x += 2) c.lineTo(x, topAt(x));
+        c.quadraticCurveTo(x1 + 4, (topAt(x1) + bot(x1)) / 2, x1, bot(x1));
+        let x = x1;
+        for (const d of [...drips].sort((a, b) => b.cx - a.cx)) {
+            const r = d.w / 2, b = bot(d.cx);
+            for (; x > d.cx + r + 4; x -= 2) c.lineTo(x, bot(x));
+            c.lineTo(d.cx + r + 4, b); c.quadraticCurveTo(d.cx + r, b, d.cx + r, b + 5);
+            c.lineTo(d.cx + r * 0.8, b + d.L); c.arc(d.cx, b + d.L, r * 1.12, 0, Math.PI, false);
+            c.lineTo(d.cx - r, b + 5); c.quadraticCurveTo(d.cx - r, b, d.cx - r - 4, b);
+            x = d.cx - r - 4;
+        }
+        for (; x > x0; x -= 2) c.lineTo(x, bot(x));
+        c.lineTo(x0, bot(x0)); c.quadraticCurveTo(x0 - 4, (topAt(x0) + bot(x0)) / 2, x0, topAt(x0)); c.closePath();
+    }
+
+    /* ===== containers =====
+       Chosen once for the whole sheet. Everything is drawn in the jar's 96 x 170 box; a container supplies its own
+       outline, liquid area, lid/cork and overflow area, and the decorations (drawn for the jar) are slid onto its shape.
+       Links store the position in this list, so only ever add new ones at the end. */
+    const P2 = f => { const p = new Path2D(); f(p); return p; };
+    const rr = (x, y, w, h, r) => P2(p => roundRect(p, x, y, w, h, r));
+    const jarBody = P2(p => {
+        p.moveTo(14, 32); p.quadraticCurveTo(4, 36, 4, 60); p.lineTo(4, 146); p.quadraticCurveTo(4, 170, 28, 170);
+        p.lineTo(68, 170); p.quadraticCurveTo(92, 170, 92, 146); p.lineTo(92, 60); p.quadraticCurveTo(92, 36, 82, 32); p.closePath();
+    });
+    const mugBody = P2(p => { p.moveTo(4, 8); p.lineTo(4, 156); p.quadraticCurveTo(4, 170, 18, 170); p.lineTo(66, 170); p.quadraticCurveTo(80, 170, 80, 156); p.lineTo(80, 8); p.closePath(); });
+    const mugInside = P2(p => { p.moveTo(4, 8); p.lineTo(4, 150); p.quadraticCurveTo(4, 157, 12, 157); p.lineTo(72, 157); p.quadraticCurveTo(80, 157, 80, 150); p.lineTo(80, 8); p.closePath(); });
+    const bellyY = 122 - Math.sqrt(48 * 48 - 100); // where the bottle's neck meets its round belly
+    const bottleBody = P2(p => {
+        p.moveTo(38, 20); p.lineTo(38, bellyY);
+        p.arc(48, 122, 48, Math.atan2(bellyY - 122, -10), Math.atan2(bellyY - 122, 10), true);
+        p.lineTo(58, 20); p.closePath();
+    });
+    const heartBody = P2(p => {
+        p.moveTo(48, 52); p.bezierCurveTo(40, 34, 24, 26, 12, 32); p.bezierCurveTo(-4, 40, -6, 72, 6, 92); p.bezierCurveTo(16, 112, 36, 140, 48, 170);
+        p.bezierCurveTo(60, 140, 80, 112, 90, 92); p.bezierCurveTo(102, 72, 100, 40, 84, 32); p.bezierCurveTo(72, 26, 56, 34, 48, 52); p.closePath();
+    });
+    const arcPoint = (cx, cy, x, y) => Math.atan2(y - cy, x - cx);
+    const bowlBody = P2(p => { // fishbowl: a circle cut flat at the opening and the base
+        const top = Math.sqrt(2500 - 38 * 38), bot = Math.sqrt(2500 - 48 * 48);
+        p.moveTo(48 - top, 82); p.arc(48, 120, 50, arcPoint(48, 120, 48 - top, 82), arcPoint(48, 120, 48 - bot, 168), true);
+        p.lineTo(48 + bot, 168); p.arc(48, 120, 50, arcPoint(48, 120, 48 + bot, 168), arcPoint(48, 120, 48 + top, 82), true); p.closePath();
+    });
+    const potBody = P2(p => { p.moveTo(10, 64); p.bezierCurveTo(-10, 88, -6, 150, 24, 158); p.lineTo(72, 158); p.bezierCurveTo(102, 150, 106, 88, 86, 64); p.closePath(); });
+    const wineBowl = P2(p => { p.moveTo(12, 8); p.bezierCurveTo(10, 64, 30, 96, 48, 98); p.bezierCurveTo(66, 96, 86, 64, 84, 8); p.closePath(); });
+    const milkBody = P2(p => {
+        p.moveTo(30, 22); p.lineTo(30, 40); p.bezierCurveTo(30, 58, 10, 60, 10, 84); p.lineTo(10, 156); p.quadraticCurveTo(10, 170, 24, 170);
+        p.lineTo(72, 170); p.quadraticCurveTo(86, 170, 86, 156); p.lineTo(86, 84); p.bezierCurveTo(86, 60, 66, 58, 66, 40); p.lineTo(66, 22); p.closePath();
+    });
+    const jugBody = P2(p => {
+        p.moveTo(2, 16); p.quadraticCurveTo(10, 17, 12, 28); p.lineTo(14, 156); p.quadraticCurveTo(14, 170, 28, 170);
+        p.lineTo(64, 170); p.quadraticCurveTo(78, 170, 78, 156); p.lineTo(80, 22); p.lineTo(80, 16); p.closePath();
+    });
+    const band = (c, path, full, fill) => { c.beginPath(); c.fillStyle = full ? fill : "#fff"; c.fill(path); c.lineWidth = 4; c.stroke(path); };
+    const shineLine = (c, f) => { c.strokeStyle = "rgba(255,255,255,.55)"; c.lineWidth = 6; c.beginPath(); f(); c.stroke(); };
+    const CONTAINERS = [
+        { label: "Jar", plural: "Jars", outer: jarBody, inner: jarBody, levels: { top: 32, bottom: 170, full: 28 }, top: 0,
+          shape: [rr(6, 0, 84, 24, 6), rr(12, 20, 72, 14, 4), jarBody],
+          overflow: { x0: -3, x1: 99, top: 18, shift: 0, dripX: [-2, 98] },
+          shine: c => { c.fillStyle = "rgba(255,255,255,.5)"; c.beginPath(); roundRect(c, 11, 50, 6, 78, 3); roundRect(c, 11, 134, 6, 10, 3); c.fill(); },
+          details: (c, full, fill) => {
+              c.lineWidth = 2.5; c.beginPath(); c.moveTo(18, 160); c.quadraticCurveTo(26, 165, 38, 164); c.moveTo(58, 164); c.quadraticCurveTo(70, 165, 78, 160); c.stroke();
+              c.beginPath(); roundRect(c, 12, 20, 72, 14, 4); c.fillStyle = full ? fill : "#fff"; c.fill(); c.lineWidth = 4; c.stroke();
+          },
+          closure: (c, dx, dy, rot) => drawLid(c, dx, dy, rot) },
+        { label: "Potion", plural: "Potions", outer: bottleBody, inner: bottleBody, levels: { top: 24, bottom: 170, full: 16 }, top: -6,
+          shape: [rr(38, -6, 20, 22, 4), rr(33, 12, 30, 9, 3), bottleBody],
+          overflow: { x0: 30, x1: 66, top: 7, shift: -12, dripX: [37, 59], dripW: 0.6, dripL: 0.55, maxDrips: 2, foamK: 0.45, foamY: -14, spoutK: 0.6, topAnts: 0.6 },
+          shine: c => shineLine(c, () => { c.arc(48, 122, 37, 3.55, 4.25); c.moveTo(43, 28); c.lineTo(43, 62); }),
+          details: (c, full, fill) => band(c, rr(33, 12, 30, 9, 3), full, fill),
+          closure: (c, dx = 0, dy = 0, rot = 0) => { // cork
+              c.save(); c.translate(48 + dx, 5 + dy); c.rotate(rot); c.translate(-48, -5);
+              c.beginPath(); roundRect(c, 38, -6, 20, 22, 4); c.fillStyle = "#c99a5b"; c.fill(); c.lineWidth = 4.5; c.strokeStyle = INK; c.stroke();
+              c.fillStyle = "rgba(21,19,17,.35)"; for (const [x, y] of [[43, 0], [52, 5], [45, 10], [53, -2]]) { c.beginPath(); c.arc(x, y, 1.4, 0, 7); c.fill(); }
+              c.restore();
+          } },
+        { label: "Mug", plural: "Mugs", outer: mugBody, inner: mugInside, levels: { top: 14, bottom: 157, full: 10 }, top: 4,
+          shape: [rr(1, 4, 82, 8, 4), mugBody],
+          overflow: { x0: -3, x1: 87, top: 3, shift: -14, dripX: [-2, 80], dripL: 0.85, foamK: 0.9 },
+          behind: c => { // handle
+              c.beginPath(); c.moveTo(76, 40); c.bezierCurveTo(108, 34, 108, 126, 76, 120);
+              c.lineWidth = 17; c.strokeStyle = INK; c.stroke(); c.lineWidth = 9; c.strokeStyle = "#fff"; c.stroke();
+          },
+          shine: c => { c.fillStyle = "rgba(255,255,255,.5)"; c.beginPath(); roundRect(c, 10, 22, 6, 106, 3); roundRect(c, 10, 134, 6, 10, 3); c.fill(); },
+          details: (c, full, fill) => {
+              c.lineWidth = 2.5; c.beginPath(); c.moveTo(12, 158); c.lineTo(72, 158); c.stroke();
+              band(c, rr(1, 4, 82, 8, 4), full, fill);
+          } },
+        { label: "Heart", plural: "Hearts", outer: heartBody, inner: heartBody, levels: { top: 32, bottom: 170, full: 24 }, top: 0,
+          shape: [rr(28, 0, 40, 24, 6), rr(36, 20, 24, 34, 4), heartBody],
+          overflow: { x0: 0, x1: 96, follow: true, lift: 4, band: 13, shift: 4, dripX: [14, 82], dripW: 0.8, dripL: 0.6, maxDrips: 4,
+                      sleeve: [35, 13, 26, 42, 9], foamK: 0.75, foamY: -4, spoutK: 0.8, topAnts: 0.75 },
+          shine: c => shineLine(c, () => { c.moveTo(8, 78); c.quadraticCurveTo(5, 46, 22, 38); }),
+          details: (c, full, fill) => band(c, rr(36, 20, 24, 34, 4), full, fill),
+          closure: (c, dx, dy, rot) => drawLid(c, dx, dy, rot, 40) },
+        { label: "Fishbowl", plural: "Fishbowls", outer: bowlBody, inner: bowlBody, levels: { top: 88, bottom: 168, full: 84 }, top: 76,
+          shape: [rr(11, 76, 74, 11, 5), bowlBody],
+          overflow: { x0: 6, x1: 90, top: 72, shift: 48, dripX: [10, 86], dripL: 0.8, dripMaxY: 122, lower: 76, foamK: 0.85 },
+          shine: (c, ly) => {
+              shineLine(c, () => { c.arc(48, 120, 40, 3.3, 4.1); });
+              if (ly > 126) return; // the fish only shows once there's water for it
+              c.save(); c.translate(56, 140); c.lineWidth = 1.8; c.strokeStyle = INK; c.fillStyle = "#ff9f40";
+              c.beginPath(); c.ellipse(0, 0, 10, 6, 0, 0, 7); c.moveTo(8, 0); c.lineTo(17, -6); c.lineTo(17, 6); c.closePath(); c.fill(); c.stroke();
+              c.fillStyle = INK; c.beginPath(); c.arc(-5, -1.5, 1.4, 0, 7); c.fill(); c.restore();
+          },
+          details: (c, full, fill) => band(c, rr(11, 76, 74, 11, 5), full, fill) },
+        { label: "Cauldron", plural: "Cauldrons", outer: potBody, inner: potBody, levels: { top: 72, bottom: 158, full: 66 }, top: 54,
+          shape: [rr(0, 54, 96, 16, 8), potBody, rr(16, 150, 14, 20, 4), rr(66, 150, 14, 20, 4)],
+          overflow: { x0: -4, x1: 100, top: 48, shift: 22, dripX: [0, 96], dripL: 0.75, lower: 54 },
+          behind: c => { for (const x of [16, 66]) { c.beginPath(); roundRect(c, x, 150, 14, 20, 4); c.fillStyle = "#fff"; c.fill(); c.lineWidth = 4; c.strokeStyle = INK; c.stroke(); } },
+          shine: c => shineLine(c, () => { c.moveTo(12, 88); c.quadraticCurveTo(4, 116, 14, 140); }),
+          details: (c, full, fill) => band(c, rr(0, 54, 96, 16, 8), full, fill) },
+        { label: "Wine glass", plural: "Wine Glasses", outer: wineBowl, inner: wineBowl, levels: { top: 14, bottom: 96, full: 10 }, top: 8,
+          shape: [wineBowl, rr(44, 94, 8, 70, 3), P2(p => p.ellipse(48, 165, 32, 6, 0, 0, 7))],
+          overflow: { x0: 4, x1: 92, top: 2, shift: -14, dripX: [10, 86], dripL: 0.7, lower: 8, foamK: 0.9, topAnts: 0.9 },
+          behind: c => {
+              c.lineWidth = 4; c.strokeStyle = INK; c.fillStyle = "#fff";
+              c.beginPath(); roundRect(c, 44, 92, 8, 72, 3); c.fill(); c.stroke();
+              c.beginPath(); c.ellipse(48, 165, 32, 6, 0, 0, 7); c.fill(); c.stroke();
+          },
+          shine: c => shineLine(c, () => { c.moveTo(21, 20); c.quadraticCurveTo(20, 58, 34, 80); }),
+          details: () => {} },
+        { label: "Milk bottle", plural: "Milk Bottles", outer: milkBody, inner: milkBody, levels: { top: 34, bottom: 170, full: 26 }, top: 2,
+          shape: [rr(27, 2, 42, 14, 5), rr(26, 14, 44, 10, 4), milkBody],
+          overflow: { x0: 4, x1: 92, follow: true, lift: 3, band: 12, shift: 0, dripX: [14, 82], dripW: 0.9, dripL: 0.75, maxDrips: 4,
+                      sleeve: [25, 10, 46, 22, 8], foamK: 0.6, foamY: -6, spoutK: 0.8, topAnts: 0.8 },
+          shine: c => { c.fillStyle = "rgba(255,255,255,.5)"; c.beginPath(); roundRect(c, 16, 92, 6, 58, 3); roundRect(c, 34, 26, 5, 18, 2.5); c.fill(); },
+          details: (c, full, fill) => band(c, rr(26, 14, 44, 10, 4), full, fill),
+          closure: (c, dx = 0, dy = 0, rot = 0) => { // foil cap
+              c.save(); c.translate(48 + dx, 9 + dy); c.rotate(rot); c.translate(-48, -9);
+              c.beginPath(); roundRect(c, 27, 2, 42, 14, 5); c.fillStyle = "#dcdcdc"; c.fill(); c.lineWidth = 4.5; c.strokeStyle = INK; c.stroke();
+              c.lineWidth = 1.6; c.beginPath(); for (let x = 33; x < 66; x += 5) { c.moveTo(x, 6); c.lineTo(x, 12); } c.stroke();
+              c.restore();
+          } },
+        { label: "Measuring jug", plural: "Measuring Jugs", outer: jugBody, inner: jugBody, levels: { top: 26, bottom: 168, full: 20 }, top: 16,
+          shape: [jugBody],
+          overflow: { x0: -4, x1: 86, top: 9, shift: -12, dripX: [0, 80], dripL: 0.85, lower: 16, foamK: 0.9 },
+          behind: c => {
+              c.beginPath(); c.moveTo(78, 36); c.bezierCurveTo(106, 34, 104, 118, 77, 122);
+              c.lineWidth = 15; c.strokeStyle = INK; c.stroke(); c.lineWidth = 7; c.strokeStyle = "#fff"; c.stroke();
+          },
+          shine: c => { c.fillStyle = "rgba(255,255,255,.5)"; c.beginPath(); roundRect(c, 20, 40, 6, 90, 3); c.fill(); },
+          details: c => { // the scale marks are the 1-5 rating levels
+              c.save(); c.lineWidth = 2; c.strokeStyle = INK; c.fillStyle = INK;
+              c.font = "600 11px Oswald, 'Arial Narrow', sans-serif"; c.textAlign = "right"; c.textBaseline = "middle";
+              [.16, .36, .58, .8, 1].forEach((f, k) => { const y = 168 - 142 * f + (k === 4 ? 8 : 0); c.beginPath(); c.moveTo(66, y); c.lineTo(76, y); c.stroke(); c.fillText(k + 1, 62, y); });
+              c.restore();
+          } },
+    ];
+    const JAR = CONTAINERS[0];
+    const container = () => CONTAINERS[state.container] || JAR;
+
+    // where each container is, row by row (for sliding decorations across) and column by column (how far drips can run)
+    const probe = document.createElement("canvas").getContext("2d");
+    function measure(ct) {
+        if (ct.rows) return ct;
+        ct.rows = new Map(); ct.cols = new Map(); ct.tops = new Map();
+        for (let y = -12; y <= 176; y++) for (let x = -16; x <= 116; x += 2) {
+            if (ct.shape.some(p => probe.isPointInPath(p, x, y))) { const row = ct.rows.get(y); if (row) row[1] = x; else ct.rows.set(y, [x, x]); }
+            if (probe.isPointInPath(ct.outer, x, y)) { ct.cols.set(x, y); if (!ct.tops.has(x)) ct.tops.set(x, y); }
+        }
+        return ct;
+    }
+    function spanAt(ct, y) {
+        const rows = measure(ct).rows;
+        for (let d = 0; d < 200; d++) { const row = rows.get(Math.round(y) + d) || rows.get(Math.round(y) - d); if (row) return row; }
+        return [4, 92];
+    }
+    function mapX(ct, x, y, yc = y) { // a point placed against the jar at height y, moved to the same spot on ct at height yc
+        const [j0, j1] = spanAt(JAR, y), [k0, k1] = spanAt(ct, yc);
+        return k0 + (x - j0) * (k1 - k0) / (j1 - j0);
+    }
+    const bottomAt = (ct, x) => measure(ct).cols.get(Math.round(x / 2) * 2);
+    function topAt(ct, x) { // the container's top edge at column x (nearest column if x is beside it)
+        const tops = measure(ct).tops, k = Math.round(x / 2) * 2;
+        for (let d = 0; d < 60; d += 2) { const y = tops.get(k + d) ?? tops.get(k - d); if (y !== undefined) return y; }
+        return 30;
+    }
+    function fitTo(P, ct) { // slide the jar-shaped details onto another container, scaled to suit it
+        const o = ct.overflow, [a, b] = o.dripX;
+        P.base += o.shift;
+        const even = o.maxDrips && P.drips.length > o.maxDrips;
+        if (even) P.drips = P.drips.slice(0, o.maxDrips);
+        P.drips.forEach((d, i) => {
+            d.cx = even ? a + (b - a) * (i + 0.5) / P.drips.length : a + (d.cx + 2) * (b - a) / 100;
+            d.w *= o.dripW || 1; d.L *= o.dripL || 1;
+            const floor = Math.min(bottomAt(ct, d.cx - d.w * 0.3) ?? P.base, bottomAt(ct, d.cx + d.w * 0.3) ?? P.base);
+            if (o.band) d.b = topAt(ct, d.cx) - o.lift + o.band;
+            d.L = Math.max(4, Math.min(d.L, floor - 6 - (d.b ?? P.base) - d.w * 0.6, (o.dripMaxY ?? Infinity) - (d.b ?? P.base) - d.w * 0.6));
+        });
+        const k = o.foamK || 1;
+        const lower = o.lower || 0; // containers whose top is lower down: bring the things above it down too
+        if (P.foam) P.foam = P.foam.map(([x, y, rad]) => [48 + (x - 48) * k, y + (o.foamY || 0) + lower, rad * Math.max(k, 0.6)]);
+        if (lower && P.hearts) P.hearts = P.hearts.map(([x, y, sz]) => [x, y + lower, sz]);
+        if (lower && P.drops) P.drops = P.drops.map(([x, y, rad]) => [x, y + lower, rad]);
+        if (lower && P.origin) P.origin = [P.origin[0], P.origin[1] + lower];
+        P.spout = o.spoutK || 1; P.spoutY = lower;
+        // ants up on a small top (cork, narrow lid) are shrunk to fit it; ones on the sides stay full size
+        const shrink = o.topAnts || 1, onTop = y => y < 40;
+        const slide = ([x, y, a, s, ...rest]) => { const up = onTop(y), y2 = up ? y + lower : y; return [mapX(ct, x, y, y2), y2, a, up ? s * shrink : s, ...rest]; };
+        if (P.ants) P.ants = P.ants.map(slide);
+        if (P.antsUnder) P.antsUnder = P.antsUnder.map(slide);
+        if (P.loneAnt) P.loneAnt = [P.loneAnt[0], P.loneAnt[1] * shrink, mapX(ct, 48, 0, ct.top), ct.top, shrink];
     }
 
     /* Each jar gets one of these "overflow" looks (picked by position unless chosen), with its own random details. */
@@ -467,7 +692,7 @@
     const DECORATIONS = ["hearts", "ant", "ants", "ants (receiving)", "ants (giving)"]; // the styles that also work on a jar that isn't overflowing (in menu order)
     const MENU = [...STYLE_NAMES.filter(n => !DECORATIONS.includes(n)), ...DECORATIONS]; // menu order for overflowing jars
     const RANDOM_STYLES = 6; // only the first 6 (drips..hearts) are handed out automatically; the ant ones have to be picked (or set in JAR_LIDS)
-    function jarParams(idx, chosen = -1, flip = false) {
+    function jarParams(idx, chosen = -1, flip = false, ct = JAR) {
         const r = rng(idx * 7919 + 101);
         const row = Math.floor(idx / COLS), preset = STYLE_NAMES.indexOf(JAR_LIDS[key(idx)]);
         const style = chosen >= 0 ? chosen : preset >= 0 ? preset : (idx % COLS + row * 3) % RANDOM_STYLES;
@@ -522,14 +747,16 @@
                 P.carry = true;
             }
         }
+        if (ct !== JAR) fitTo(P, ct);
         return P;
     }
 
-    function drawJar(c, idx, level, rgb, style, flip) {
-        const P = jarParams(idx, style, flip), r = P.r, fill = css(rgb);
+    function drawJar(c, idx, level, rgb, style, flip, ct = container()) {
+        const P = jarParams(idx, style, flip, ct), r = P.r, fill = css(rgb), o = ct.overflow, lv = ct.levels;
         // overflowing jars always get their look; others only get a decoration that was picked for them
         const over = level === 5, deco = over || (level > 0 && style >= 0 && DECORATIONS.includes(STYLE_NAMES[style]));
         c.save(); c.lineJoin = "round"; c.lineCap = "round";
+        if (ct.behind) ct.behind(c);
 
         // puddle sits under the jar
         if (level === 5 && P.puddle) {
@@ -538,10 +765,12 @@
         }
 
         // liquid inside
-        c.save(); bodyPath(c); c.fillStyle = "#fff"; c.fill(); c.clip();
+        c.save(); c.fillStyle = "#fff"; c.fill(ct.outer); c.clip(ct.inner);
+        let surface = Infinity;
         if (level > 0) {
-            const top = 32, bottom = 170, frac = [0, .16, .36, .58, .8, 1][level];
-            const ly = level === 5 ? 28 : bottom - (bottom - top) * frac, amp = level === 5 ? 0 : 2.2;
+            const { top, bottom } = lv, frac = [0, .16, .36, .58, .8, 1][level];
+            const ly = level === 5 ? lv.full : bottom - (bottom - top) * frac, amp = level === 5 ? 0 : 2.2;
+            surface = ly;
             const g = c.createLinearGradient(0, ly, 0, bottom); g.addColorStop(0, lighten(rgb, .12)); g.addColorStop(1, darken(rgb, .2));
             const surf = () => { for (let x = -4; x <= 100; x += 4) c.lineTo(x, ly + Math.sin(x * 0.11 + P.phase) * amp); };
             c.beginPath(); c.moveTo(-4, ly); surf(); c.lineTo(100, 180); c.lineTo(-4, 180); c.closePath(); c.fillStyle = g; c.fill();
@@ -552,24 +781,29 @@
                 c.beginPath(); c.arc(bx, by, br, 0, 7); c.stroke();
             }
         }
-        c.fillStyle = "rgba(255,255,255,.5)"; c.beginPath(); roundRect(c, 11, 50, 6, 78, 3); roundRect(c, 11, 134, 6, 10, 3); c.fill();
+        ct.shine(c, surface);
         c.restore();
 
         // glass
-        bodyPath(c); c.lineWidth = 4.5; c.strokeStyle = INK; c.stroke();
-        c.lineWidth = 2.5; c.beginPath(); c.moveTo(18, 160); c.quadraticCurveTo(26, 165, 38, 164); c.moveTo(58, 164); c.quadraticCurveTo(70, 165, 78, 160); c.stroke();
-        c.beginPath(); roundRect(c, 12, 20, 72, 14, 4); c.fillStyle = level === 5 ? fill : "#fff"; c.fill(); c.lineWidth = 4; c.stroke();
+        c.lineWidth = 4.5; c.strokeStyle = INK; c.stroke(ct.outer);
+        ct.details(c, level === 5, fill);
 
         // overflow! (and/or hearts)
+        const xf = [c.getTransform()];
         if (deco) {
             const shapes = [];
             const foamFill = lighten(rgb, .55);
+            const oo = !o.follow ? o : o.band ? { ...o, topAt: x => topAt(ct, x) - o.lift } : { ...o, topAt: x => Math.min(topAt(ct, x) - o.lift, P.base - 8) };
+            if (over && o.sleeve) shapes.push({ fill, path: () => roundRect(c, ...o.sleeve) });
             if (over && P.style === 3) shapes.push({ fill, path: () => {
+                    const sp = P.spout || 1, sy = P.spoutY || 0;
+                    if (sp !== 1 || sy) { c.translate(48, 24 + sy); c.scale(sp, sp); c.translate(-48, -24); }
                     c.moveTo(34, 24); c.quadraticCurveTo(40, 4, 36, -8);
                     c.quadraticCurveTo(26, -20, 38, -24); c.quadraticCurveTo(44, -36, 52, -25);
                     c.quadraticCurveTo(60, -34, 64, -21); c.quadraticCurveTo(72, -14, 60, -8);
-                    c.quadraticCurveTo(56, 4, 62, 24); c.closePath(); } });
-            if (over) shapes.push({ fill, path: () => collar(c, P.base, P.drips) });
+                    c.quadraticCurveTo(56, 4, 62, 24); c.closePath();
+                    if (sp !== 1 || sy) c.setTransform(...xf); } });
+            if (over) shapes.push({ fill, path: () => o.band ? bandCollar(c, P.drips, oo) : collar(c, P.base, P.drips, oo) });
             if (over && P.foam) for (const [x, y, rad] of P.foam) shapes.push({ fill: foamFill, path: () => c.arc(x, y, rad, 0, 7) });
             if (over && P.drops) for (const [x, y, rad] of P.drops) shapes.push({ fill, path: () => teardrop(c, x, y, rad, P.origin[0], P.origin[1]) });
             if (over && P.splats) for (const [x, y, rad] of P.splats) shapes.push({ fill, path: () => c.ellipse(x, y, rad, rad * 0.4, 0, 0, 7) });
@@ -582,8 +816,9 @@
             // shine
             c.strokeStyle = "rgba(255,255,255,.6)"; c.lineWidth = 2.5;
             c.beginPath();
-            if (over) { c.moveTo(6, P.base - 14); c.quadraticCurveTo(8, 24, 18, 22); }
-            if (over) for (const d of P.drips) if (d.L > 22) { c.moveTo(d.cx - d.w * 0.22, P.base + 6); c.lineTo(d.cx - d.w * 0.22, P.base + d.L - 6); }
+            if (over && o.band) { const t = oo.topAt; c.moveTo(o.x0 + 10, t(o.x0 + 10) + 7); c.quadraticCurveTo(o.x0 + 14, t(o.x0 + 18) + 3, o.x0 + 26, t(o.x0 + 26) + 4); }
+            else if (over) { const t = oo.topAt ? oo.topAt(o.x0 + 21) : o.top; c.moveTo(o.x0 + 9, P.base - 14); c.quadraticCurveTo(o.x0 + 11, t + 6, o.x0 + 21, t + 4); }
+            if (over) for (const d of P.drips) if (d.L > 22) { const b = d.b ?? P.base; c.moveTo(d.cx - d.w * 0.22, b + 6); c.lineTo(d.cx - d.w * 0.22, b + d.L - 6); }
             if (P.hearts) for (const [x, y, s] of P.hearts) { c.moveTo(x - s * 0.75, y - s * 0.25); c.quadraticCurveTo(x - s * 0.7, y - s * 0.7, x - s * 0.35, y - s * 0.75); }
             c.stroke();
             if (over && P.foam) { c.fillStyle = "rgba(255,255,255,.85)"; for (const [x, y, rad] of P.foam.slice(0, 6)) { c.beginPath(); c.arc(x - rad * 0.35, y - rad * 0.35, rad * 0.22, 0, 7); c.fill(); } }
@@ -591,7 +826,7 @@
 
         // lid (some ants go underneath it)
         if (deco && P.antsUnder) for (const a of P.antsUnder) drawAnt(c, ...a, P.carry && fill);
-        if (over && P.lid) drawLid(c, P.lid.dx, P.lid.dy, P.lid.rot); else drawLid(c);
+        if (ct.closure) { if (over && P.lid) ct.closure(c, P.lid.dx, P.lid.dy, P.lid.rot); else ct.closure(c); }
         if (deco && P.ants) for (const a of P.ants) drawAnt(c, ...a, P.carry && fill);
         if (deco && P.loneAnt) drawLoneAnt(c, ...P.loneAnt);
         c.restore();
@@ -608,9 +843,11 @@
 
         c.fillStyle = INK; c.textBaseline = "alphabetic"; c.textAlign = "left";
         c.font = "700 104px Oswald, Impact, 'Arial Narrow', sans-serif";
-        const tw = c.measureText("Kink Jars").width, lineW = 360, gap = 26, x0 = (PW - lineW - gap - tw) / 2, base = 140;
+        const title = "Kink " + container().plural;
+        for (let size = 104; 360 + 26 + c.measureText(title).width > PW - 60 && size > 50; size -= 4) c.font = `700 ${size - 4}px Oswald, Impact, 'Arial Narrow', sans-serif`;
+        const tw = c.measureText(title).width, lineW = 360, gap = 26, x0 = (PW - lineW - gap - tw) / 2, base = 140;
         c.fillRect(x0, base - 5, lineW, 7);
-        c.fillText("Kink Jars", x0 + lineW + gap, base);
+        c.fillText(title, x0 + lineW + gap, base);
         const name = state.name.trim();
         if (name) {
             let size = 66; c.font = `${size}px "Permanent Marker", "Comic Sans MS", cursive`;
@@ -632,11 +869,11 @@
     }
 
     const lidStyle = i => STYLE_NAMES.indexOf(state.lids[i]);
-    function drawMini(canvas, idx, level, rgb, style, flip) {
+    function drawMini(canvas, idx, level, rgb, style, flip, ct) {
         canvas.width = 152; canvas.height = 248;
         const c = canvas.getContext("2d");
         c.clearRect(0, 0, 152, 248); c.translate(28, 62);
-        drawJar(c, idx, level, rgb, style, flip);
+        drawJar(c, idx, level, rgb, style, flip, ct);
     }
 
     /* ===== UI ===== */
@@ -727,6 +964,14 @@
         persist(); buildEditor([0, "input"]); update();
     };
 
+    const ctRow = $("containers");
+    CONTAINERS.forEach((ct, k) => {
+        const b = document.createElement("button"); b.type = "button"; b.className = "ct";
+        b.innerHTML = '<canvas aria-hidden="true"></canvas><span></span>'; b.querySelector("span").textContent = ct.label;
+        b.onclick = () => { state.container = k; persist(); update(); };
+        ctRow.appendChild(b);
+    });
+
     const sw = $("swatches");
     PRESETS.forEach(hex => {
         const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.style.background = hex;
@@ -763,6 +1008,7 @@
         if (document.activeElement !== $("hex")) $("hex").value = state.color.toUpperCase();
         [...sw.children].forEach(b => b.setAttribute("aria-pressed", b.dataset.hex === state.color));
         drawMini($("pv1"), 3, 2, rgb); drawMini($("pv2"), 9, 4, rgb); drawMini($("pv3"), 2, 5, rgb);
+        [...ctRow.children].forEach((b, k) => { b.setAttribute("aria-pressed", state.container === k); drawMini(b.querySelector("canvas"), 2, 3, rgb, -1, false, CONTAINERS[k]); });
         if (!editing) minis.forEach((m, i) => {
             drawMini(m.canvas, i, state.answers[i], rgb, lidStyle(i), state.flips[i]);
             // overflowing: any look, blank = automatic. Partly full: decorations only, blank = none.
