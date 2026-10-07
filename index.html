@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kink Jars</title>
+    <meta name="description" content="Fill your jars, pick your color, save your picture.">
+    <meta property="og:title" content="Kink Jars">
+    <meta property="og:description" content="Fill your jars, pick your color, save your picture.">
+    <meta name="robots" content="noindex">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Permanent+Marker&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root{--c:#e63946;--on-c:#fff;--ink:#1d1a17;--bg:#fbf6ef;--card:#fff;--muted:#6b625a;--line:#e9e0d5}
+        *{box-sizing:border-box}
+        html{-webkit-text-size-adjust:100%}
+        body{margin:0;background:var(--bg);color:var(--ink);font-family:Nunito,system-ui,sans-serif;font-size:18px;line-height:1.45;padding-bottom:110px}
+        @media(min-width:960px){body{padding-bottom:40px}}
+        .wrap{max-width:1180px;margin:0 auto;padding:28px 16px}
+        header{margin-bottom:22px}
+        header h1{font-family:Oswald,sans-serif;font-weight:700;font-size:clamp(44px,9vw,68px);margin:0;line-height:1}
+        header h1 span{color:var(--c);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill}
+        header p{margin:10px 0 0;color:var(--muted);max-width:640px}
+        .layout{display:grid;gap:24px}
+        @media(min-width:960px){.layout{grid-template-columns:minmax(0,1fr) 430px}.side{position:sticky;top:20px;align-self:start}}
+        .panel{background:var(--card);border:2px solid var(--line);border-radius:22px;padding:20px;margin-bottom:20px}
+        .step{font-family:Oswald,sans-serif;font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+        h2{font-family:Oswald,sans-serif;font-weight:600;font-size:27px;margin:2px 0 12px;line-height:1.15}
+        .hint{color:var(--muted);font-size:16px;margin:-4px 0 14px}
+        input[type=text]{font:inherit;font-size:20px;width:100%;padding:14px 16px;border:2px solid var(--line);border-radius:14px;background:#fff;color:var(--ink)}
+        input[type=text]:focus{border-color:var(--ink);outline:none}
+        button{font:inherit;cursor:pointer;color:var(--ink)}
+        button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+
+        /* color picker */
+        .picker{display:grid;gap:18px}
+        @media(min-width:620px){.picker{grid-template-columns:1fr 170px;align-items:center}}
+        .swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;max-width:420px}
+        .sw{aspect-ratio:1;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px var(--line);padding:0;min-width:40px}
+        .sw[aria-pressed=true]{box-shadow:0 0 0 3px var(--ink)}
+        .sliders{display:grid;gap:12px;margin-top:16px;max-width:420px}
+        .sl{display:grid;grid-template-columns:52px 1fr 44px;align-items:center;gap:10px;font-weight:700;font-size:16px}
+        .sl output{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+        input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:26px;border-radius:13px;border:2px solid var(--ink);margin:0;background:#ccc}
+        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;border-radius:50%;background:#fff;border:3px solid var(--ink);box-shadow:0 2px 4px rgba(0,0,0,.25)}
+        input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:#fff;border:3px solid var(--ink)}
+        .hexrow{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+        .hexrow input{width:130px;font-size:18px;padding:10px 12px;font-family:ui-monospace,Menlo,monospace;text-transform:uppercase}
+        .ghost{background:#fff;border:2px solid var(--ink);border-radius:999px;padding:9px 16px;font-weight:700;font-size:16px}
+        .ghost:hover{background:var(--bg)}
+        .preview-jars{display:flex;justify-content:center;gap:2px}
+        .preview-jars canvas{width:62px;height:101px}
+
+        /* questions */
+        .q{display:grid;grid-template-columns:76px 1fr;gap:14px;align-items:center;padding:14px 0;border-top:2px dashed var(--line)}
+        .q:first-of-type{border-top:0}
+        .q canvas{width:76px;height:124px}
+        .qnum{font-size:14px;color:var(--muted);font-weight:700}
+        .qlabel{font-family:Oswald,sans-serif;font-weight:600;font-size:25px;line-height:1.1;margin:2px 0 10px}
+        .scale{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;max-width:380px}
+        .scale button{height:52px;border-radius:14px;border:2px solid var(--ink);background:#fff;font-family:Oswald,sans-serif;font-weight:600;font-size:22px;transition:transform .08s}
+        .scale button:active{transform:scale(.94)}
+        .scale button[aria-pressed=true]{background:var(--c);color:var(--on-c);box-shadow:0 3px 0 var(--ink)}
+        .ends{display:flex;justify-content:space-between;max-width:380px;font-size:13px;color:var(--muted);font-weight:700;margin-top:5px}
+        .lidpick{margin-top:8px;font-size:16px}
+        .lidpick[hidden]{display:none}
+        .lidpick summary{display:inline-flex;align-items:center;gap:8px;list-style:none;cursor:pointer;font-weight:700;color:var(--muted);padding:4px 0}
+        .lidpick summary::-webkit-details-marker{display:none}
+        .lidpick summary::before{content:"";width:7px;height:7px;margin:0 2px;border:solid currentColor;border-width:0 2.5px 2.5px 0;transform:rotate(-45deg);transition:transform .15s}
+        .lidpick[open] summary::before{transform:rotate(45deg) translate(-2px,-2px)}
+        .lidpick summary .cur{font-weight:400}
+        .lidpick[open] summary .cur{display:none}
+        .lidpick summary:focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:6px}
+        .panel-head{display:flex;justify-content:space-between;align-items:center;gap:8px 12px;flex-wrap:wrap;margin-bottom:12px}
+        .panel-head h2{margin:2px 0 0}
+        #fillTitle:focus{outline:none}
+        .panel-head .ghost[hidden]{display:none}
+        .edit-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+        .edit-row{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:6px;align-items:center}
+        .edit-row input[type=text]{font-size:18px;padding:9px 12px;min-width:0}
+        .iconbtn{width:44px;height:44px;padding:0;border-radius:12px;border:2px solid var(--ink);background:#fff;font-size:19px;font-weight:700;line-height:1}
+        .iconbtn:disabled{opacity:.25;cursor:default}
+        @media(max-width:520px){.edit-row{gap:4px;grid-template-columns:minmax(0,1fr) auto auto auto}.edit-row input[type=text]{order:-1;font-size:16px;padding:9px 10px}.iconbtn{width:38px;height:42px}}
+        .edit-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
+        .lidrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px}
+        .flipbtn[hidden]{display:none}
+        .flipbtn[aria-pressed=true]{background:var(--ink);color:#fff}
+        .lidpick select{display:block;font:inherit;font-size:17px;padding:8px 12px;border:2px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink);cursor:pointer}
+
+        /* poster + save */
+        .poster{width:100%;height:auto;display:block;border-radius:12px;border:2px solid var(--line);background:#fff}
+        .big{display:block;width:100%;margin-top:16px;padding:18px 20px;border-radius:18px;border:3px solid var(--ink);background:var(--c);color:var(--on-c);font-family:Oswald,sans-serif;font-weight:700;font-size:26px;letter-spacing:.02em;box-shadow:0 5px 0 var(--ink)}
+        .big:active{transform:translateY(3px);box-shadow:0 2px 0 var(--ink)}
+        .big.alt{background:#fff;color:var(--ink)}
+        #save{margin-top:12px}
+        .linkout{width:100%;margin-top:10px;font-size:15px !important;padding:10px 12px !important}
+        .linkout[hidden]{display:none}
+        .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+        .small-links{display:flex;justify-content:space-between;gap:10px;margin-top:14px;font-size:15px;color:var(--muted)}
+        .linkbtn{background:none;border:0;padding:4px 0;text-decoration:underline;color:var(--muted);font-size:15px}
+
+        .bar{position:fixed;left:0;right:0;bottom:0;background:rgba(251,246,239,.96);border-top:2px solid var(--line);backdrop-filter:blur(6px);z-index:5}
+        .bar-in{max-width:1180px;margin:0 auto;padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:14px}
+        .bar-in span{font-weight:700;font-size:15px;color:var(--muted);flex:1}
+        .bar .big{width:auto;margin:0;padding:12px 22px;font-size:21px;box-shadow:0 4px 0 var(--ink)}
+        @media(min-width:960px){.bar{display:none}}
+
+        #modal{position:fixed;inset:0;background:rgba(20,16,12,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+        #modal[hidden]{display:none}
+        .sheet{background:#fff;border-radius:22px;padding:20px;max-width:440px;width:100%;max-height:92vh;overflow:auto;text-align:center}
+        .sheet h3{font-family:Oswald,sans-serif;font-size:28px;margin:0 0 6px}
+        .sheet p{margin:0 0 12px;color:var(--muted);font-size:16px}
+        .sheet img{width:100%;border-radius:10px;border:2px solid var(--line)}
+        .privacy{font-size:14px;color:var(--muted);text-align:center;margin-top:8px}
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <h1>Fill your <span>jars</span></h1>
+        <p>Pick a color, rate each one from 1 (a little) to 5 (overflowing), then save your picture. Not your thing? Skip it and the jar stays empty.</p>
+    </header>
+
+    <div class="layout">
+        <main>
+            <section class="panel">
+                <div class="step">Step 1</div>
+                <h2>What's your name?</h2>
+                <p class="hint">It goes on the blank line at the top. Nickname is fine, or leave it blank.</p>
+                <input type="text" id="name" maxlength="24" autocomplete="off" placeholder="Your name">
+            </section>
+
+            <section class="panel">
+                <div class="step">Step 2</div>
+                <h2>Pick your color</h2>
+                <div class="picker">
+                    <div>
+                        <div class="swatches" id="swatches" aria-label="Color choices"></div>
+                        <div class="sliders">
+                            <label class="sl">Red<input type="range" id="r" min="0" max="255"><output id="rv"></output></label>
+                            <label class="sl">Green<input type="range" id="g" min="0" max="255"><output id="gv"></output></label>
+                            <label class="sl">Blue<input type="range" id="b" min="0" max="255"><output id="bv"></output></label>
+                        </div>
+                        <div class="hexrow">
+                            <input type="text" id="hex" maxlength="7" spellcheck="false" aria-label="Color code">
+                            <button class="ghost" id="surprise" type="button">Surprise me</button>
+                        </div>
+                    </div>
+                    <div class="preview-jars" aria-hidden="true">
+                        <canvas id="pv1"></canvas><canvas id="pv2"></canvas><canvas id="pv3"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel" id="fill">
+                <div class="step">Step 3</div>
+                <div class="panel-head"><h2 id="fillTitle" tabindex="-1">Fill your jars</h2><button class="ghost" id="editJars" type="button">Edit / order jars</button></div>
+                <p class="hint" id="fillHint">Tap a number. Tap it again to empty the jar.</p>
+                <div id="questions"></div>
+                <div id="editor" hidden>
+                    <ol class="edit-list" id="editList"></ol>
+                    <div class="edit-actions">
+                        <button class="ghost" id="addJar" type="button">+ Add a jar</button>
+                        <button class="linkbtn" id="defaultJars" type="button">Reset to the default jars</button>
+                    </div>
+                    <button class="big" id="doneEdit" type="button">Done</button>
+                </div>
+            </section>
+        </main>
+
+        <aside class="side">
+            <section class="panel" id="done">
+                <div class="step">Step 4</div>
+                <h2>Your jars</h2>
+                <canvas class="poster" id="poster" aria-label="Preview of your filled jars"></canvas>
+                <button class="big alt" id="copyLink" type="button">Copy link</button>
+                <input type="text" class="linkout" id="linkOut" readonly hidden aria-label="Link to your jars">
+                <button class="big" id="save" type="button">Download image</button>
+                <span class="sr-only" id="copyStatus" role="status"></span>
+                <div class="small-links">
+                    <span>Nothing leaves your phone.</span>
+                    <button class="linkbtn" id="reset" type="button">Start over</button>
+                </div>
+            </section>
+        </aside>
+    </div>
+</div>
+
+<div class="bar"><div class="bar-in"><span id="progress">0 of 28 filled</span><button class="big" id="saveBar" type="button">Download image</button></div></div>
+
+<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mt">
+    <div class="sheet">
+        <h3 id="mt">Here are your jars!</h3>
+        <p>If it didn't download, press and hold the picture (or right-click it) and choose “Save image.”</p>
+        <img id="modalImg" alt="Your filled jars">
+        <button class="big" id="closeModal" type="button">Done</button>
+    </div>
+</div>
+
+<script>
+    /* ===== The default jars. Each array is the label, one entry per line. (People can change their own list with "Edit / order jars".) ===== */
+    const JARS = [
+        ["being","a dom"],["being","a sub"],["being","a switch"],["choking"],["being","choked"],["spanking"],["being","spanked"],
+        ["ants","(receiving)"],["ants","(giving)"],["doing stuff","in public"],["wax","play"],["bondage"],["role","play"],["consensual","non consent"],
+        ["having","orgasms","controlled"],["controlling","orgasms"],["gags"],["feet"],["anal"],["being","tied up"],["tying","people up"],
+        ["humiliating","or","degrading"],["being","humiliated","or","degraded"],["bdsm"],["threesomes"],["sadism"],["masochism"],["water","sports"]
+    ];
+    /* Optional: a jar that should use a particular overflow look by default (keyed by its label, see STYLE_NAMES). */
+    const JAR_LIDS = { "ants (receiving)": "ants (receiving)", "ants (giving)": "ants (giving)" };
+    const PRESETS = ["#e63946","#ff5d8f","#ff8c42","#ffd23f","#7bd389","#2ec4b6","#3a86ff","#5b2a86","#c77dff","#8d1d3a","#8d5524","#2b2d42"];
+    const COLS = 7, INK = "#151311", PW = 1200;
+
+    /* ===== state =====
+       Saved only in the page's #link. A jar list changed with "Edit / order jars" is saved too; the defaults aren't. */
+    const labelText = l => l.join(" ");
+    const sameJars = (a, b) => a.length === b.length && a.every((l, i) => labelText(l) === labelText(b[i]));
+    const parseLabel = v => String(v).split("/").map(t => t.trim().slice(0, 40)).filter(Boolean).slice(0, 6);
+    const MAX_JARS = 100;
+    let state = { name: "", color: "#e63946", jars: JARS.map(l => [...l]), answers: JARS.map(() => 0), lids: JARS.map(() => ""), flips: JARS.map(() => false) };
+    const key = i => labelText(state.jars[i] || []);
+
+    /* #link format: base64url of a packed bit stream (or "~" + base64url of it deflated, when that's shorter),
+       scrambled before encoding (see scramble below):
+         1 bit has-name   [7-bit byte length + UTF-8]
+         1 bit has-colour [24-bit RGB]
+         1 bit has-lineup (only if it isn't JARS), then tokens until "end", each a 2-bit type:
+             0 = a default jar [16-bit id]   1 = a run of defaults in JARS order [first id, last id]
+             2 = a custom label [8-bit byte length + UTF-8, "/" between lines]   3 = end
+         7-bit count of marked jars, each: 16-bit jar id, 3-bit answer (0-5), 1 bit has-decoration [4-bit STYLE_NAMES index],
+             1 bit flipped
+       A jar's id is a 16-bit hash of its label, so the defaults can be reordered/added to without breaking links
+       (renaming a default jar does lose answers for it). */
+    const hashId = t => { let h = 0x811c9dc5; for (const ch of t) h = Math.imul(h ^ ch.codePointAt(0), 0x01000193); return ((h >>> 16) ^ h) & 0xffff; };
+    function jarIds(list) { // a clash within one list is re-hashed, so ids stay unique and decoding repeats it identically
+        const seen = new Set();
+        return list.map(l => { let id, k = 0; do id = hashId(labelText(l) + (k ? "#" + k : "")); while (seen.has(id) && ++k); seen.add(id); return id; });
+    }
+    const DEFAULT_IDS = jarIds(JARS);
+
+    function bitWriter() {
+        const bytes = []; let n = 0;
+        const put = (v, w) => { for (let i = w - 1; i >= 0; i--, n++) { if (!(n & 7)) bytes.push(0); bytes[bytes.length - 1] |= ((v >>> i) & 1) << (7 - (n & 7)); } };
+        const text = (str, lenBits) => { const b = new TextEncoder().encode(str).slice(0, 2 ** lenBits - 1); put(b.length, lenBits); b.forEach(x => put(x, 8)); };
+        return { put, text, bytes: () => Uint8Array.from(bytes) };
+    }
+    function bitReader(bytes) {
+        let n = 0;
+        const get = w => { let v = 0; for (let i = 0; i < w; i++, n++) { if ((n >> 3) >= bytes.length) throw new Error("short"); v = v * 2 + ((bytes[n >> 3] >> (7 - (n & 7))) & 1); } return v; };
+        const text = lenBits => new TextDecoder().decode(Uint8Array.from({ length: get(lenBits) }, () => get(8)));
+        return { get, text };
+    }
+
+    function encodeState() {
+        const w = bitWriter();
+        w.put(state.name ? 1 : 0, 1); if (state.name) w.text(state.name, 7);
+        const custColor = state.color !== "#e63946";
+        w.put(custColor ? 1 : 0, 1); if (custColor) w.put(parseInt(state.color.slice(1), 16), 24);
+        const custJars = !sameJars(state.jars, JARS);
+        w.put(custJars ? 1 : 0, 1);
+        if (custJars) {
+            const at = new Map(JARS.map((l, i) => [labelText(l), i])), runs = [];
+            for (const l of state.jars) {
+                const d = at.get(labelText(l)), last = runs[runs.length - 1];
+                if (d === undefined) runs.push(l.join("/"));
+                else if (Array.isArray(last) && last[1] === d - 1) last[1] = d;
+                else runs.push([d, d]);
+            }
+            for (const r of runs) {
+                if (!Array.isArray(r)) { w.put(2, 2); w.text(r, 8); }
+                else if (r[0] === r[1]) { w.put(0, 2); w.put(DEFAULT_IDS[r[0]], 16); }
+                else { w.put(1, 2); w.put(DEFAULT_IDS[r[0]], 16); w.put(DEFAULT_IDS[r[1]], 16); }
+            }
+            w.put(3, 2);
+        }
+        const ids = jarIds(state.jars), marked = state.jars.map((_, i) => i).filter(i => state.answers[i] || state.lids[i] || state.flips[i]).slice(0, 127);
+        w.put(marked.length, 7);
+        for (const i of marked) {
+            const st = STYLE_NAMES.indexOf(state.lids[i]);
+            w.put(ids[i], 16); w.put(state.answers[i], 3); w.put(st >= 0 ? 1 : 0, 1); if (st >= 0) w.put(st, 4); w.put(state.flips[i] ? 1 : 0, 1);
+        }
+        return custColor || custJars || state.name || marked.length ? w.bytes() : null;
+    }
+    function decodeState(bytes) {
+        const r = bitReader(bytes), s = { name: "", color: "#e63946", marks: {} };
+        if (r.get(1)) s.name = r.text(7);
+        if (r.get(1)) s.color = "#" + r.get(24).toString(16).padStart(6, "0");
+        if (r.get(1)) {
+            s.jars = [];
+            for (let t; (t = r.get(2)) !== 3 && s.jars.length < MAX_JARS;) {
+                if (t === 2) { s.jars.push(r.text(8)); continue; }
+                const from = DEFAULT_IDS.indexOf(r.get(16)), to = t === 1 ? DEFAULT_IDS.indexOf(r.get(16)) : from;
+                if (from >= 0) for (let i = from; i <= to; i++) s.jars.push(JARS[i].join("/"));
+            }
+        }
+        for (let k = r.get(7); k > 0; k--) {
+            const id = r.get(16), v = r.get(3), st = r.get(1) ? r.get(4) : -1, flip = r.get(1) === 1;
+            if (v <= 5) s.marks[id] = [v, st, flip];
+        }
+        return s;
+    }
+    // s may come from a shared link, so everything in it is checked before use
+    function applySaved(s) {
+        if (!s) return false;
+        const custom = Array.isArray(s.jars) ? s.jars.slice(0, MAX_JARS).map(parseLabel).filter(l => l.length) : [];
+        const jars = custom.length ? custom : JARS.map(l => [...l]), ids = jarIds(jars);
+        state = {
+            name: String(s.name).slice(0, 24),
+            color: /^#[0-9a-f]{6}$/i.test(s.color) ? s.color.toLowerCase() : "#e63946",
+            jars,
+            answers: ids.map(id => (s.marks[id] || [0])[0]),
+            lids: ids.map(id => STYLE_NAMES[(s.marks[id] || [])[1]] || ""),
+            flips: ids.map(id => !!(s.marks[id] || [])[2]),
+        };
+        return true;
+    }
+
+    const b64u = bytes => btoa(Array.from(bytes, b => String.fromCharCode(b)).join("")).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const unb64u = str => Uint8Array.from(atob(str.replace(/-/g, "+").replace(/_/g, "/")), ch => ch.charCodeAt(0));
+    const pipe = async (bytes, stream) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
+    // XOR with a fixed keystream so names/labels don't show up when the link is base64-decoded.
+    // Obfuscation only: the page has to be able to undo it, so anyone with the page could too.
+    const scramble = bytes => { const r = rng(0x6a617273); return bytes.map(b => b ^ Math.floor(r() * 256)); };
+    async function shortest(bytes) {
+        const plain = b64u(scramble(bytes));
+        if (!window.CompressionStream) return plain;
+        const z = "~" + b64u(scramble(await pipe(bytes, new CompressionStream("deflate-raw"))));
+        return z.length < plain.length ? z : plain;
+    }
+    async function readHash() {
+        try {
+            const h = location.hash.slice(1);
+            if (!h) return null;
+            const z = h[0] === "~", bytes = scramble(unb64u(z ? h.slice(1) : h));
+            return decodeState(z ? await pipe(bytes, new DecompressionStream("deflate-raw")) : bytes);
+        } catch (e) { return null; }
+    }
+
+    let hashTimer, hashSeq = 0;
+    function persist() {
+        const bytes = encodeState(), seq = ++hashSeq;
+        clearTimeout(hashTimer);
+        hashTimer = setTimeout(async () => {
+            let h = "";
+            if (bytes) try { h = "#" + await shortest(bytes); } catch (e) { h = "#" + b64u(bytes); }
+            if (seq === hashSeq) history.replaceState(null, "", location.pathname + location.search + h);
+        }, 250);
+    }
+
+    /* ===== color helpers ===== */
+    const hexToRgb = h => { h = h.replace("#", ""); if (h.length === 3) h = [...h].map(x => x + x).join(""); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+    const rgbToHex = a => "#" + a.map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
+    const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+    const css = (a, al = 1) => `rgba(${a.map(Math.round).join(",")},${al})`;
+    const lighten = (a, t) => css(mix(a, [255, 255, 255], t));
+    const darken = (a, t) => css(mix(a, [0, 0, 0], t));
+    const lum = ([r, g, b]) => (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+    function rng(seed) { return () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+    /* ===== jar drawing (local box: 96 wide, 170 tall, lid at top) ===== */
+    function roundRect(c, x, y, w, h, r) { c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+    function bodyPath(c) {
+        c.beginPath(); c.moveTo(14, 32);
+        c.quadraticCurveTo(4, 36, 4, 60); c.lineTo(4, 146); c.quadraticCurveTo(4, 170, 28, 170);
+        c.lineTo(68, 170); c.quadraticCurveTo(92, 170, 92, 146); c.lineTo(92, 60); c.quadraticCurveTo(92, 36, 82, 32);
+        c.closePath();
+    }
+    function drawLid(c, dx = 0, dy = 0, rot = 0) {
+        c.save(); c.translate(48 + dx, 12 + dy); c.rotate(rot); c.translate(-48, -12);
+        c.beginPath(); roundRect(c, 6, 0, 84, 24, 6); c.fillStyle = "#fff"; c.fill();
+        c.lineWidth = 4.5; c.strokeStyle = INK; c.stroke();
+        c.lineWidth = 2.4; c.beginPath();
+        for (const y of [8, 16]) { c.moveTo(10, y); c.quadraticCurveTo(48, y + 3, 86, y); }
+        c.stroke(); c.restore();
+    }
+    function teardrop(c, x, y, r, ox, oy) { // tail points toward (ox,oy)
+        const a = Math.atan2(oy - y, ox - x);
+        c.moveTo(x + Math.cos(a) * r * 2.5, y + Math.sin(a) * r * 2.5);
+        c.arc(x, y, r, a + Math.PI / 2, a + Math.PI * 1.5, false); c.closePath();
+    }
+    function heart(c, x, y, s) {
+        c.moveTo(x, y + s * 0.9);
+        c.bezierCurveTo(x - s * 1.6, y - s * 0.1, x - s * 0.8, y - s * 1.3, x, y - s * 0.45);
+        c.bezierCurveTo(x + s * 0.8, y - s * 1.3, x + s * 1.6, y - s * 0.1, x, y + s * 0.9); c.closePath();
+    }
+    function drawAnt(c, x, y, ang, s, gait, carry) { // top-down ant ~40 long at s=1, head toward ang, optionally carrying a drop of color carry
+        const legs = [[[5, 2], [9, 7], [15, 9]], [[3, 2.5], [4, 8], [1, 14]], [[1, 2], [-3, 7], [-11, 12]]];
+        const limbs = () => {
+            c.beginPath();
+            legs.forEach((leg, k) => [-1, 1].forEach(side => {
+                const sh = gait * side * (k % 2 ? -1 : 1);
+                c.moveTo(leg[0][0], leg[0][1] * side); c.lineTo(leg[1][0] + sh * 0.5, leg[1][1] * side); c.lineTo(leg[2][0] + sh, leg[2][1] * side);
+            }));
+            for (const side of [-1, 1]) { c.moveTo(14, 1.5 * side); c.lineTo(18, 6 * side); c.lineTo(23, 4.5 * side); }
+        };
+        const body = () => {
+            c.beginPath();
+            for (const [cx, rx, ry] of [[-10, 8.5, 6.5], [-1, 2, 1.8], [4, 5, 3.3], [12, 4.5, 4]]) { c.moveTo(cx + rx, 0); c.ellipse(cx, 0, rx, ry, 0, 0, 7); }
+        };
+        c.save(); c.translate(x, y); c.rotate(ang); c.scale(s, s);
+        c.strokeStyle = "#fff"; c.lineWidth = 6; limbs(); c.stroke(); body(); c.stroke();
+        c.strokeStyle = INK; c.lineWidth = 3; limbs(); c.stroke(); body(); c.fillStyle = INK; c.fill();
+        c.fillStyle = "rgba(255,255,255,.6)"; c.beginPath();
+        c.ellipse(-12, -2.6, 3.2, 1.6, -0.2, 0, 7); c.moveTo(14.4, -1.6); c.ellipse(13, -1.6, 1.4, 1, 0, 0, 7); c.fill();
+        if (carry) {
+            c.beginPath(); c.arc(21, 0, 6, 0, 7); c.lineWidth = 2.6; c.stroke(); c.fillStyle = carry; c.fill();
+            c.fillStyle = "rgba(255,255,255,.7)"; c.beginPath(); c.arc(19.5, -2, 1.7, 0, 7); c.fill();
+        }
+        c.restore();
+    }
+    function drawLoneAnt(c, flip, dx) { // side-on ant standing on the lid (feet at y=0), facing +x before flip
+        const legs = [[[10, -20], [17, -13], [19, -1], [23, -1]], [[3, -19], [-1, -11], [-7, -1], [-10, -1]], [[-3, -19], [-14, -10], [-28, -1], [-31, -1]]];
+        const limbs = near => {
+            c.beginPath();
+            for (const leg of legs) leg.forEach(([x, y], k) => c[k ? "lineTo" : "moveTo"](x + (near ? 0 : k === 1 ? 3 : k > 1 ? 6 : 0), y));
+            if (near) { c.moveTo(22, -35); c.lineTo(29, -45); c.quadraticCurveTo(37, -47, 41, -40); c.moveTo(26, -25); c.quadraticCurveTo(31, -24, 29, -20); }
+            else { c.moveTo(19, -35); c.lineTo(24, -47); c.quadraticCurveTo(32, -50, 37, -45); }
+        };
+        const body = () => {
+            c.beginPath();
+            for (const [x, y, rx, ry, rot] of [[-25, -22, 13.5, 10, -0.35], [-9.5, -21, 3, 3.5, 0], [2, -23, 10, 5.5, -0.2], [9, -26, 5.5, 5, 0], [20, -29, 8, 7, 0.35]]) {
+                c.moveTo(x + rx * Math.cos(rot), y + rx * Math.sin(rot)); c.ellipse(x, y, rx, ry, rot, 0, 7);
+            }
+        };
+        c.save(); c.translate(48 + dx, 0); c.scale(flip * 1.1, 1.1);
+        c.strokeStyle = "#fff"; c.lineWidth = 8; limbs(false); c.stroke(); limbs(true); c.stroke(); c.lineWidth = 6; body(); c.stroke();
+        c.strokeStyle = INK; c.lineWidth = 3; limbs(false); c.stroke();
+        c.strokeStyle = "#fff"; c.lineWidth = 7; limbs(true); c.stroke();
+        c.strokeStyle = INK; c.lineWidth = 3.6; limbs(true); c.stroke(); body(); c.fillStyle = INK; c.fill();
+        c.fillStyle = "rgba(255,255,255,.6)"; c.beginPath(); c.ellipse(-28, -27, 5.5, 2.4, -0.45, 0, 7); c.fill();
+        c.fillStyle = "#fff"; c.beginPath(); c.arc(22.5, -31, 1.9, 0, 7); c.fill();
+        c.restore();
+    }
+    function blob(c, pts) {
+        const n = pts.length, mid = i => [(pts[i][0] + pts[(i + 1) % n][0]) / 2, (pts[i][1] + pts[(i + 1) % n][1]) / 2];
+        let m = mid(n - 1); c.moveTo(m[0], m[1]);
+        for (let i = 0; i < n; i++) { m = mid(i); c.quadraticCurveTo(pts[i][0], pts[i][1], m[0], m[1]); }
+        c.closePath();
+    }
+    function makeDrips(r, n, base, minL, maxL) {
+        const span = 100 / n, out = [];
+        for (let i = 0; i < n; i++) {
+            const w = 9 + r() * 6;
+            out.push({ cx: -2 + span * (i + 0.5) + (r() - 0.5) * span * 0.35, w, L: minL + r() * (maxL - minL) });
+        }
+        out.forEach(d => d.L = Math.min(d.L, 164 - base - d.w * 0.6));
+        return out;
+    }
+    function collar(c, base, drips) {
+        c.moveTo(4, 18); c.lineTo(92, 18);
+        c.quadraticCurveTo(100, 22, 99, base - 4); c.quadraticCurveTo(99, base, 95, base);
+        for (const d of [...drips].sort((a, b) => b.cx - a.cx)) {
+            const r = d.w / 2;
+            c.lineTo(d.cx + r + 4, base); c.quadraticCurveTo(d.cx + r, base, d.cx + r, base + 5);
+            c.lineTo(d.cx + r * 0.8, base + d.L);
+            c.arc(d.cx, base + d.L, r * 1.12, 0, Math.PI, false);
+            c.lineTo(d.cx - r, base + 5); c.quadraticCurveTo(d.cx - r, base, d.cx - r - 4, base);
+        }
+        c.lineTo(1, base); c.quadraticCurveTo(-3, base, -3, base - 4); c.quadraticCurveTo(-4, 22, 4, 18); c.closePath();
+    }
+
+    /* Each jar gets one of these "overflow" looks (picked by position unless chosen), with its own random details. */
+    // links refer to these by position (4 bits, so 16 max), so only ever add new ones at the end
+    const STYLE_NAMES = ["drips", "puddle", "foam", "geyser", "splash", "hearts", "ants", "ant", "ants (receiving)", "ants (giving)"];
+    const DIRECTIONAL = ["foam", "geyser", "ants", "ant", "ants (receiving)", "ants (giving)"]; // looks that face one way and can be flipped
+    const DECORATIONS = ["hearts", "ant", "ants", "ants (receiving)", "ants (giving)"]; // the styles that also work on a jar that isn't overflowing (in menu order)
+    const MENU = [...STYLE_NAMES.filter(n => !DECORATIONS.includes(n)), ...DECORATIONS]; // menu order for overflowing jars
+    const RANDOM_STYLES = 6; // only the first 6 (drips..hearts) are handed out automatically; the ant ones have to be picked (or set in JAR_LIDS)
+    function jarParams(idx, chosen = -1, flip = false) {
+        const r = rng(idx * 7919 + 101);
+        const row = Math.floor(idx / COLS), preset = STYLE_NAMES.indexOf(JAR_LIDS[key(idx)]);
+        const style = chosen >= 0 ? chosen : preset >= 0 ? preset : (idx % COLS + row * 3) % RANDOM_STYLES;
+        const side = (r() < 0.5 ? -1 : 1) * (flip ? -1 : 1);
+        const P = { style, phase: r() * 6.28, r };
+        if (style === 0) { P.base = 40 + r() * 8; P.drips = makeDrips(r, 4 + (r() < 0.5 ? 1 : 0), P.base, 8, 125); }
+        if (style === 1) {
+            P.base = 40; P.drips = makeDrips(r, 3, P.base, 30, 90); P.drips[Math.floor(r() * 3)].L = 999;
+            P.drips.forEach(d => d.L = Math.min(d.L, 164 - P.base - d.w * 0.6));
+            const pts = [], rx = 64 + r() * 10, ry = 10 + r() * 3;
+            for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, k = 0.86 + r() * 0.24; pts.push([48 + Math.cos(a) * rx * k, 170 + Math.sin(a) * ry * k]); }
+            P.puddle = pts;
+        }
+        if (style === 2) {
+            P.base = 38; P.drips = makeDrips(r, 3, P.base, 6, 45);
+            P.foam = [];
+            for (let i = 0; i < 14; i++) { const x = 48 + (r() - 0.5) * 88; P.foam.push([x, 28 - (1 - Math.abs(x - 48) / 46) * 34 - r() * 6, 7 + r() * 8]); }
+            P.lid = { dx: side * (14 + r() * 8), dy: -24, rot: side * (0.2 + r() * 0.12) };
+        }
+        if (style === 3) {
+            P.base = 40; P.drips = makeDrips(r, 4, P.base, 6, 70);
+            P.drops = [[2 + r() * 8, -26, 4], [-10, -4 + r() * 6, 3.5], [-15, 20 + r() * 8, 3], [92 + r() * 6, -24, 4], [106, -2 + r() * 6, 3.5], [111, 22 + r() * 8, 3]];
+            P.origin = [48, -20];
+            P.lid = { dx: side * 36, dy: -26, rot: side * 0.6 };
+        }
+        if (style === 4) {
+            P.base = 42; P.drips = makeDrips(r, 4, P.base, 10, 95);
+            P.drops = []; P.origin = [48, 24];
+            for (let i = 0; i < 6; i++) { const s = i % 2 ? 1 : -1; P.drops.push([48 + s * (60 + r() * 12), 4 + r() * 100, 2.6 + r() * 2]); }
+            P.splats = [[-12 - r() * 6, 172, 7], [108 + r() * 6, 173, 6], [118, 166, 2.5], [-22, 166, 2.5]];
+        }
+        if (style === 5) {
+            P.base = 44; P.drips = makeDrips(r, 5, P.base, 6, 105);
+            P.hearts = [[14 + r() * 8, -14 - r() * 6, 7 + r() * 2], [48 + (r() - 0.5) * 10, -26, 9 + r() * 2], [80 + r() * 8, -12 - r() * 6, 6 + r() * 2]];
+        }
+        if (style === 6) {
+            P.base = 40; P.drips = makeDrips(r, 4, P.base, 8, 85);
+            // [x, y, heading, size]: a big one sprawled across the lid, one marching up each side of the jar
+            P.ants = [[44 + r() * 6, 6, -0.25 + (r() - 0.5) * 0.3, 1.5], [18, 112 + r() * 14, -Math.PI / 2 - 0.15, 1.2], [80, 70 + r() * 10, -Math.PI / 2 + 0.3, 1]]
+                .map(([x, y, a, s], i) => [side > 0 ? x : 96 - x, y, side > 0 ? a : Math.PI - a, s, i % 2 ? 2 : -2]);
+        }
+        if (style === 7) { P.base = 42; P.drips = makeDrips(r, 4, P.base, 8, 100); P.loneAnt = [side, (r() - 0.5) * 6]; }
+        if (style === 8 || style === 9) {
+            P.base = 40; P.drips = makeDrips(r, 4, P.base, 8, 80);
+            const m = ([x, y, a, s], i) => [side > 0 ? x : 96 - x, y, side > 0 ? a : Math.PI - a, s, i % 2 ? 2 : -2];
+            if (style === 8) { // receiving: single file up the jar, the front one already squeezing in under the lid
+                P.ants = [[-4, 160, -0.6, 1], [12, 98, -Math.PI / 2 + 0.1, 1]].map(m);
+                P.antsUnder = [[22, 36, -Math.PI / 2 + 0.25, 1]].map(m);
+            } else { // giving: out from under the lid and away, each carrying off a drop
+                P.antsUnder = [[64, -4, -0.9, 1]].map(m);
+                P.ants = [[88, 92, Math.PI / 2 - 0.1, 1], [100, 158, 0.5, 1]].map(m);
+                P.carry = true;
+            }
+        }
+        return P;
+    }
+
+    function drawJar(c, idx, level, rgb, style, flip) {
+        const P = jarParams(idx, style, flip), r = P.r, fill = css(rgb);
+        // overflowing jars always get their look; others only get a decoration that was picked for them
+        const over = level === 5, deco = over || (level > 0 && style >= 0 && DECORATIONS.includes(STYLE_NAMES[style]));
+        c.save(); c.lineJoin = "round"; c.lineCap = "round";
+
+        // puddle sits under the jar
+        if (level === 5 && P.puddle) {
+            c.beginPath(); blob(c, P.puddle); c.lineWidth = 7; c.strokeStyle = INK; c.stroke(); c.fillStyle = fill; c.fill();
+            c.beginPath(); c.ellipse(20, 172, 10, 2.5, 0, 0, 7); c.fillStyle = "rgba(255,255,255,.55)"; c.fill();
+        }
+
+        // liquid inside
+        c.save(); bodyPath(c); c.fillStyle = "#fff"; c.fill(); c.clip();
+        if (level > 0) {
+            const top = 32, bottom = 170, frac = [0, .16, .36, .58, .8, 1][level];
+            const ly = level === 5 ? 28 : bottom - (bottom - top) * frac, amp = level === 5 ? 0 : 2.2;
+            const g = c.createLinearGradient(0, ly, 0, bottom); g.addColorStop(0, lighten(rgb, .12)); g.addColorStop(1, darken(rgb, .2));
+            const surf = () => { for (let x = -4; x <= 100; x += 4) c.lineTo(x, ly + Math.sin(x * 0.11 + P.phase) * amp); };
+            c.beginPath(); c.moveTo(-4, ly); surf(); c.lineTo(100, 180); c.lineTo(-4, 180); c.closePath(); c.fillStyle = g; c.fill();
+            c.beginPath(); c.moveTo(-4, ly); surf(); c.strokeStyle = lighten(rgb, .45); c.lineWidth = 3; c.stroke();
+            c.strokeStyle = css(mix(rgb, [255, 255, 255], .6), .85); c.lineWidth = 1.6;
+            for (let i = 0; i < 2 + level; i++) {
+                const bx = 18 + r() * 60, by = ly + 10 + r() * Math.max(0, bottom - ly - 22), br = 1.5 + r() * 2.6;
+                c.beginPath(); c.arc(bx, by, br, 0, 7); c.stroke();
+            }
+        }
+        c.fillStyle = "rgba(255,255,255,.5)"; c.beginPath(); roundRect(c, 11, 50, 6, 78, 3); roundRect(c, 11, 134, 6, 10, 3); c.fill();
+        c.restore();
+
+        // glass
+        bodyPath(c); c.lineWidth = 4.5; c.strokeStyle = INK; c.stroke();
+        c.lineWidth = 2.5; c.beginPath(); c.moveTo(18, 160); c.quadraticCurveTo(26, 165, 38, 164); c.moveTo(58, 164); c.quadraticCurveTo(70, 165, 78, 160); c.stroke();
+        c.beginPath(); roundRect(c, 12, 20, 72, 14, 4); c.fillStyle = level === 5 ? fill : "#fff"; c.fill(); c.lineWidth = 4; c.stroke();
+
+        // overflow! (and/or hearts)
+        if (deco) {
+            const shapes = [];
+            const foamFill = lighten(rgb, .55);
+            if (over && P.style === 3) shapes.push({ fill, path: () => {
+                    c.moveTo(34, 24); c.quadraticCurveTo(40, 4, 36, -8);
+                    c.quadraticCurveTo(26, -20, 38, -24); c.quadraticCurveTo(44, -36, 52, -25);
+                    c.quadraticCurveTo(60, -34, 64, -21); c.quadraticCurveTo(72, -14, 60, -8);
+                    c.quadraticCurveTo(56, 4, 62, 24); c.closePath(); } });
+            if (over) shapes.push({ fill, path: () => collar(c, P.base, P.drips) });
+            if (over && P.foam) for (const [x, y, rad] of P.foam) shapes.push({ fill: foamFill, path: () => c.arc(x, y, rad, 0, 7) });
+            if (over && P.drops) for (const [x, y, rad] of P.drops) shapes.push({ fill, path: () => teardrop(c, x, y, rad, P.origin[0], P.origin[1]) });
+            if (over && P.splats) for (const [x, y, rad] of P.splats) shapes.push({ fill, path: () => c.ellipse(x, y, rad, rad * 0.4, 0, 0, 7) });
+            if (P.hearts) for (const [x, y, s] of P.hearts) shapes.push({ fill, path: () => heart(c, x, y, s) });
+
+            c.lineWidth = 7; c.strokeStyle = INK;
+            for (const s of shapes) { c.beginPath(); s.path(); c.stroke(); }
+            for (const s of shapes) { c.beginPath(); s.path(); c.fillStyle = s.fill; c.fill(); }
+
+            // shine
+            c.strokeStyle = "rgba(255,255,255,.6)"; c.lineWidth = 2.5;
+            c.beginPath();
+            if (over) { c.moveTo(6, P.base - 14); c.quadraticCurveTo(8, 24, 18, 22); }
+            if (over) for (const d of P.drips) if (d.L > 22) { c.moveTo(d.cx - d.w * 0.22, P.base + 6); c.lineTo(d.cx - d.w * 0.22, P.base + d.L - 6); }
+            if (P.hearts) for (const [x, y, s] of P.hearts) { c.moveTo(x - s * 0.75, y - s * 0.25); c.quadraticCurveTo(x - s * 0.7, y - s * 0.7, x - s * 0.35, y - s * 0.75); }
+            c.stroke();
+            if (over && P.foam) { c.fillStyle = "rgba(255,255,255,.85)"; for (const [x, y, rad] of P.foam.slice(0, 6)) { c.beginPath(); c.arc(x - rad * 0.35, y - rad * 0.35, rad * 0.22, 0, 7); c.fill(); } }
+        }
+
+        // lid (some ants go underneath it)
+        if (deco && P.antsUnder) for (const a of P.antsUnder) drawAnt(c, ...a, P.carry && fill);
+        if (over && P.lid) drawLid(c, P.lid.dx, P.lid.dy, P.lid.rot); else drawLid(c);
+        if (deco && P.ants) for (const a of P.ants) drawAnt(c, ...a, P.carry && fill);
+        if (deco && P.loneAnt) drawLoneAnt(c, ...P.loneAnt);
+        c.restore();
+    }
+
+    /* ===== poster ===== */
+    function drawPoster(canvas, scale) {
+        const rgb = hexToRgb(state.color), jars = state.jars;
+        const PH = 260 + (Math.max(1, Math.ceil(jars.length / COLS)) - 1) * 345 + 360;
+        canvas.width = PW * scale; canvas.height = PH * scale;
+        const c = canvas.getContext("2d");
+        c.setTransform(scale, 0, 0, scale, 0, 0);
+        c.fillStyle = "#fff"; c.fillRect(0, 0, PW, PH);
+
+        c.fillStyle = INK; c.textBaseline = "alphabetic"; c.textAlign = "left";
+        c.font = "700 104px Oswald, Impact, 'Arial Narrow', sans-serif";
+        const tw = c.measureText("Kink Jars").width, lineW = 360, gap = 26, x0 = (PW - lineW - gap - tw) / 2, base = 140;
+        c.fillRect(x0, base - 5, lineW, 7);
+        c.fillText("Kink Jars", x0 + lineW + gap, base);
+        const name = state.name.trim();
+        if (name) {
+            let size = 66; c.font = `${size}px "Permanent Marker", "Comic Sans MS", cursive`;
+            while (c.measureText(name).width > lineW - 12 && size > 20) { size -= 2; c.font = `${size}px "Permanent Marker", "Comic Sans MS", cursive`; }
+            c.textAlign = "center"; c.fillText(name, x0 + lineW / 2, base - 18);
+        }
+        c.textAlign = "center"; c.font = "500 30px Oswald, 'Arial Narrow', sans-serif"; c.fillStyle = "#555";
+        c.fillText("(1 = a little  ·  5 = overflowing)", PW / 2, 200);
+
+        jars.forEach((label, i) => {
+            const col = i % COLS, row = Math.floor(i / COLS), inRow = Math.min(COLS, jars.length - row * COLS);
+            const cx = PW / 2 + (col - (inRow - 1) / 2) * 150, top = 260 + row * 345;
+            c.save(); c.translate(cx - 48, top); drawJar(c, i, state.answers[i], rgb, lidStyle(i), state.flips[i]); c.restore();
+            let size = 30; c.font = `600 ${size}px Oswald, 'Arial Narrow', sans-serif`;
+            while (label.some(l => c.measureText(l).width > 140) && size > 18) { size--; c.font = `600 ${size}px Oswald, 'Arial Narrow', sans-serif`; }
+            c.fillStyle = INK; c.textAlign = "center";
+            label.forEach((l, k) => c.fillText(l, cx, top + 170 + 44 + k * (size + 4)));
+        });
+    }
+
+    const lidStyle = i => STYLE_NAMES.indexOf(state.lids[i]);
+    function drawMini(canvas, idx, level, rgb, style, flip) {
+        canvas.width = 152; canvas.height = 248;
+        const c = canvas.getContext("2d");
+        c.clearRect(0, 0, 152, 248); c.translate(28, 62);
+        drawJar(c, idx, level, rgb, style, flip);
+    }
+
+    /* ===== UI ===== */
+    const $ = id => document.getElementById(id);
+    const qWrap = $("questions");
+    let minis = [];
+    function buildQuestions() {
+      qWrap.textContent = ""; minis = [];
+      state.jars.forEach((label, i) => {
+        const text = label.join(" ");
+        const q = document.createElement("div"); q.className = "q";
+        q.innerHTML = `<canvas aria-hidden="true"></canvas><div><div class="qnum">${i + 1} of ${state.jars.length}</div><div class="qlabel"></div><div class="scale" role="group"></div><div class="ends"><span>a little</span><span>overflowing</span></div><details class="lidpick" hidden><summary>Decoration <span class="cur"></span></summary><div class="lidrow"><select></select><button class="ghost flipbtn" type="button" aria-pressed="false" hidden>&#8644; Flip</button></div></details></div>`;
+        q.querySelector(".qlabel").textContent = text;
+        const sc = q.querySelector(".scale"); sc.setAttribute("aria-label", text);
+        for (let v = 1; v <= 5; v++) {
+            const b = document.createElement("button"); b.type = "button"; b.textContent = v;
+            b.setAttribute("aria-label", `${text}: ${v} out of 5`);
+            b.onclick = () => { state.answers[i] = state.answers[i] === v ? 0 : v; persist(); update(); };
+            sc.appendChild(b);
+        }
+        const sel = q.querySelector("select");
+        sel.onchange = () => { state.lids[i] = sel.value; persist(); update(); };
+        sel.setAttribute("aria-label", "Decoration for " + text);
+        const flipBtn = q.querySelector(".flipbtn");
+        flipBtn.setAttribute("aria-label", "Flip the decoration on " + text);
+        flipBtn.onclick = () => { state.flips[i] = !state.flips[i]; persist(); update(); };
+        minis.push({ canvas: q.querySelector("canvas"), buttons: [...sc.children], lid: q.querySelector(".lidpick"), cur: q.querySelector(".cur"), sel, text, flipBtn });
+        qWrap.appendChild(q);
+      });
+    }
+
+    /* ===== edit / order jars ===== */
+    let editing = false;
+    function setEditing(on) {
+        editing = on;
+        if (!on) { // drop jars left without a label
+            for (let i = state.jars.length - 1; i >= 0; i--) if (!state.jars[i].length) [state.jars, state.answers, state.lids, state.flips].forEach(a => a.splice(i, 1));
+            persist(); buildQuestions();
+        }
+        $("questions").hidden = on; $("editor").hidden = !on; $("editJars").hidden = on;
+        $("fillTitle").textContent = on ? "Edit your jars" : "Fill your jars";
+        $("fillHint").textContent = on ? "Rename, reorder, add or remove jars. Put a / where a label should break onto a new line." : "Tap a number. Tap it again to empty the jar.";
+        if (on) { buildEditor(); $("fillTitle").focus({ preventScroll: true }); }
+        else { if ($("fill").getBoundingClientRect().top < 0) $("fill").scrollIntoView({ behavior: "smooth" }); $("editJars").focus({ preventScroll: true }); }
+        update();
+    }
+    function buildEditor(focus) {
+        const list = $("editList"), n = state.jars.length; list.textContent = "";
+        state.jars.forEach((label, i) => {
+            const li = document.createElement("li"); li.className = "edit-row";
+            li.innerHTML = '<button type="button" class="iconbtn" data-act="up">&uarr;</button><button type="button" class="iconbtn" data-act="down">&darr;</button>'
+                + '<input type="text" maxlength="120" autocomplete="off"><button type="button" class="iconbtn" data-act="del">&times;</button>';
+            const inp = li.querySelector("input"), name = label.join(" ") || `jar ${i + 1}`;
+            inp.value = label.join(" / "); inp.setAttribute("aria-label", `Jar ${i + 1} of ${n}`);
+            inp.oninput = () => { state.jars[i] = parseLabel(inp.value); persist(); update(); };
+            const [up, down, del] = li.querySelectorAll("button");
+            up.disabled = i === 0; down.disabled = i === n - 1;
+            up.setAttribute("aria-label", `Move ${name} up`); down.setAttribute("aria-label", `Move ${name} down`); del.setAttribute("aria-label", `Remove ${name}`);
+            for (const b of [up, down, del]) b.onclick = () => editJar(i, b.dataset.act);
+            list.appendChild(li);
+        });
+        $("addJar").disabled = n >= MAX_JARS;
+        const row = focus && list.children[focus[0]], el = row && row.querySelector(focus[1]);
+        if (row) (el && !el.disabled ? el : row.querySelector("input")).focus();
+    }
+    function editJar(i, act) {
+        const arrs = [state.jars, state.answers, state.lids, state.flips];
+        let next = i;
+        if (act === "del") arrs.forEach(a => a.splice(i, 1));
+        else { next = act === "up" ? i - 1 : i + 1; arrs.forEach(a => { [a[i], a[next]] = [a[next], a[i]]; }); }
+        persist(); update();
+        buildEditor(state.jars.length ? [Math.min(next, state.jars.length - 1), act === "del" ? "input" : `[data-act=${act}]`] : null);
+        if (!state.jars.length) $("addJar").focus();
+    }
+    $("editJars").onclick = () => setEditing(true);
+    $("doneEdit").onclick = () => setEditing(false);
+    $("addJar").onclick = () => {
+        state.jars.push([]); state.answers.push(0); state.lids.push(""); state.flips.push(false);
+        buildEditor([state.jars.length - 1, "input"]); update();
+    };
+    $("defaultJars").onclick = () => {
+        if (!confirm("Put back the original list of jars? Answers for jars on both lists are kept.")) return;
+        const was = Object.fromEntries(state.jars.map((l, i) => [labelText(l), [state.answers[i], state.lids[i], state.flips[i]]]));
+        state.jars = JARS.map(l => [...l]);
+        state.answers = state.jars.map(l => (was[labelText(l)] || [0])[0]);
+        state.lids = state.jars.map(l => (was[labelText(l)] || [0, ""])[1]);
+        state.flips = state.jars.map(l => !!(was[labelText(l)] || [])[2]);
+        persist(); buildEditor([0, "input"]); update();
+    };
+
+    const sw = $("swatches");
+    PRESETS.forEach(hex => {
+        const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.style.background = hex;
+        b.dataset.hex = hex; b.setAttribute("aria-label", "Color " + hex);
+        b.onclick = () => setColor(hex); sw.appendChild(b);
+    });
+    ["r", "g", "b"].forEach((k, n) => $(k).addEventListener("input", () => {
+        const a = hexToRgb(state.color); a[n] = +$(k).value; setColor(rgbToHex(a));
+    }));
+    $("hex").addEventListener("input", e => {
+        let v = e.target.value.trim(); if (!v.startsWith("#")) v = "#" + v;
+        if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) setColor(rgbToHex(hexToRgb(v)), true);
+    });
+    $("surprise").onclick = () => {
+        const h = Math.random() * 360, s = 0.65 + Math.random() * 0.3, l = 0.45 + Math.random() * 0.2;
+        const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+        const f = n => 255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)));
+        setColor(rgbToHex([f(0), f(8), f(4)]));
+    };
+    $("name").addEventListener("input", e => { state.name = e.target.value; persist(); update(); });
+
+    function setColor(hex, fromHexBox) { state.color = hex.toLowerCase(); persist(); if (!fromHexBox) $("hex").value = state.color.toUpperCase(); update(); }
+
+    let queued = false;
+    function update() { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; render(); }); }
+    function render() {
+        const rgb = hexToRgb(state.color), root = document.documentElement.style;
+        root.setProperty("--c", state.color); root.setProperty("--on-c", lum(rgb) > 0.6 ? INK : "#fff");
+        ["r", "g", "b"].forEach((k, n) => {
+            $(k).value = rgb[n]; $(k + "v").textContent = rgb[n];
+            const lo = [...rgb], hi = [...rgb]; lo[n] = 0; hi[n] = 255;
+            $(k).style.background = `linear-gradient(to right, ${css(lo)}, ${css(hi)})`;
+        });
+        if (document.activeElement !== $("hex")) $("hex").value = state.color.toUpperCase();
+        [...sw.children].forEach(b => b.setAttribute("aria-pressed", b.dataset.hex === state.color));
+        drawMini($("pv1"), 3, 2, rgb); drawMini($("pv2"), 9, 4, rgb); drawMini($("pv3"), 2, 5, rgb);
+        if (!editing) minis.forEach((m, i) => {
+            drawMini(m.canvas, i, state.answers[i], rgb, lidStyle(i), state.flips[i]);
+            // overflowing: any look, blank = automatic. Partly full: decorations only, blank = none.
+            const mode = state.answers[i] === 5 ? "over" : state.answers[i] ? "deco" : "";
+            if (mode && m.mode !== mode) {
+                m.mode = mode; m.sel.length = 0;
+                const blank = mode === "deco" ? "None" : JAR_LIDS[m.text] ? "Default" : "Random";
+                ["", ...(mode === "over" ? MENU : DECORATIONS)].forEach(n => m.sel.add(new Option(n ? n[0].toUpperCase() + n.slice(1) : blank, n)));
+            }
+            m.sel.value = [...m.sel.options].some(o => o.value === state.lids[i]) ? state.lids[i] : "";
+            // collapsed by default; starts open if this jar already has a choice, then it's up to the user
+            m.lid.hidden = !mode;
+            if (mode && !m.seen) { m.seen = true; m.lid.open = m.sel.value !== ""; }
+            // flipping only means something for looks that face a way, and only once that look is actually showing
+            const shown = mode === "over" ? STYLE_NAMES[jarParams(i, lidStyle(i)).style] : m.sel.value;
+            const canFlip = DIRECTIONAL.includes(shown);
+            m.flipBtn.hidden = !canFlip; m.flipBtn.setAttribute("aria-pressed", canFlip && state.flips[i]);
+            m.cur.textContent = (m.sel.value ? "· " + m.sel.selectedOptions[0].text : "") + (canFlip && state.flips[i] ? (m.sel.value ? ", flipped" : "· Flipped") : "");
+            m.buttons.forEach((b, k) => b.setAttribute("aria-pressed", state.answers[i] === k + 1));
+        });
+        const n = state.answers.filter(Boolean).length;
+        $("progress").textContent = `${n} of ${state.jars.length} filled`;
+        drawPoster($("poster"), 1);
+    }
+
+    async function save() {
+        const out = document.createElement("canvas");
+        drawPoster(out, 2);
+        const blob = await new Promise(res => out.toBlob(res, "image/png"));
+        const slug = state.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const fname = (slug ? slug + "-" : "") + "kink-jars.png";
+        const file = new File([blob], fname, { type: "image/png" });
+        const touch = matchMedia("(pointer: coarse)").matches;
+        if (touch && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try { await navigator.share({ files: [file] }); return; }
+            catch (e) { if (e.name === "AbortError") return; }
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = fname;
+        document.body.appendChild(a); a.click(); a.remove();
+        $("modalImg").src = url; $("modal").hidden = false; $("closeModal").focus();
+    }
+    $("save").onclick = save; $("saveBar").onclick = save;
+
+    // build the link now rather than waiting for the address bar to catch up
+    let copiedTimer;
+    $("copyLink").onclick = async () => {
+        const bytes = encodeState(), hash = bytes ? "#" + await shortest(bytes).catch(() => b64u(scramble(bytes))) : "";
+        clearTimeout(hashTimer); history.replaceState(null, "", location.pathname + location.search + hash);
+        const url = location.href, btn = $("copyLink"), out = $("linkOut");
+        let ok = false;
+        try { await navigator.clipboard.writeText(url); ok = true; } catch (e) {
+            out.value = url; out.hidden = false; out.select(); // clipboard API needs https; fall back to the old way
+            try { ok = document.execCommand("copy"); } catch (e2) {}
+        }
+        if (ok) out.hidden = true; else { out.value = url; out.hidden = false; out.select(); }
+        btn.textContent = ok ? "Copied!" : "Copy the link below";
+        $("copyStatus").textContent = ok ? "Link copied" : "Couldn't copy automatically. The link is selected below.";
+        clearTimeout(copiedTimer); copiedTimer = setTimeout(() => { btn.textContent = "Copy link"; $("copyStatus").textContent = ""; }, 2500);
+    };
+    $("closeModal").onclick = () => { $("modal").hidden = true; };
+    $("modal").addEventListener("click", e => { if (e.target.id === "modal") $("modal").hidden = true; });
+    $("reset").onclick = () => {
+        if (!confirm("Empty all the jars and start over?")) return;
+        state.answers = state.jars.map(() => 0); state.lids = state.jars.map(() => ""); state.flips = state.jars.map(() => false); state.name = ""; $("name").value = ""; persist(); update(); scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    // opening a #link (or pasting a new one into this tab) loads that state
+    function loadState(s) {
+        if (!applySaved(s)) return false;
+        $("name").value = state.name;
+        if (editing) setEditing(false);
+        buildQuestions(); persist(); render();
+        return true;
+    }
+    addEventListener("hashchange", async () => loadState(await readHash()));
+    (async () => {
+        if (!loadState(await readHash())) { buildQuestions(); render(); }
+    })();
+    Promise.all(["700 104px Oswald, Impact, 'Arial Narrow', sans-serif", "600 30px Oswald", "500 30px Oswald, 'Arial Narrow', sans-serif", '66px "Permanent Marker"'].map(f => document.fonts.load(f)))
+        .catch(() => {}).then(() => document.fonts.ready).then(render);
+</script>
+</body>
+</html>
